@@ -42,14 +42,18 @@ let server;
 
 async function start() {
   const dbInfo = await connectDB(process.env.MONGO_URI);
-  if (dbInfo.mode === "memory") {
-    console.log("Running with in-memory MongoDB (data resets on restart).");
+  if (dbInfo.mode === "persistent") {
+    console.log("Using on-disk database (data kept when you shut down the PC).");
+  } else if (dbInfo.mode === "external") {
+    console.log("Connected to MongoDB at", process.env.MONGO_URI);
   }
   await bootstrapIfEmpty();
   console.log("Database ready.");
 
-  server = app.listen(port, () => {
-    console.log(`API listening on http://127.0.0.1:${port}`);
+  const host = process.env.APP_HOST || "bappistores";
+  server = app.listen(port, "0.0.0.0", () => {
+    console.log(`Open the app: http://${host}:${port}`);
+    console.log(`            http://localhost:${port}`);
   });
 }
 

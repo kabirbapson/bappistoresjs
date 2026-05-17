@@ -10,10 +10,12 @@ lerna-debug.log*
 node_modules
 client/node_modules
 server/node_modules
+data/mongodb
 dist
 dist-ssr
 *.local
 .env
+.setup-complete
 # server/.env
 # client/.env
 

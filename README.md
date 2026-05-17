@@ -7,10 +7,28 @@ Inventory and sales management for **Bappi Stores** in Kano, Nigeria. Track prod
 - **Client:** React, Vite, Tailwind CSS, React Router, Zustand, Recharts
 - **Server:** Express, MongoDB (Mongoose), JWT auth
 
+## Give this folder to someone else (no training needed)
+
+1. They install **[Node.js 20+ LTS](https://nodejs.org/)** once.  
+2. They open **`SETUP.txt`** — or use the launchers below.  
+3. **One time:** double-click **`SETUP.bat`** (Windows) or **`SETUP.command`** (Mac).  
+4. **Every day:** double-click **`START.bat`** or **`START.command`**.  
+5. Browser: **http://bappistores:5001** (run `CONFIGURE-HOSTNAME.bat` as Admin once on Windows) — login **`admin@bappi.com`** / **`admin123`**.
+
+Do **not** zip `node_modules` when sending the project; setup installs those automatically.
+
+| File | When |
+|------|------|
+| `SETUP.bat` / `SETUP.command` | First time only (install + sample data) |
+| `START.bat` / `START.command` | Each time they use the shop |
+| `SETUP.txt` | Plain-English instructions to print or share |
+
+Developers can still run `npm run install:app` (same as the SETUP launchers).
+
 ## Requirements (any OS)
 
 - **[Node.js 20+](https://nodejs.org/)** (LTS) — Windows, macOS, and Linux
-- **MongoDB** optional — if it is not installed or not running, the API uses an **in-memory** database (data resets when the server stops)
+- **MongoDB** optional — if it is not installed, the app saves data in **`data/mongodb`** on disk (persists across shutdown and restart)
 
 ## Quick start (Windows, macOS, Linux)
 
@@ -37,13 +55,13 @@ npm run seed
 npm run start
 ```
 
-Open **http://localhost:5001** (same port as `PORT` in `server/.env`).
+Open **http://bappistores:5001** (same port as `PORT` in `server/.env`; `localhost` also works).
 
 Set `VITE_API_URL=/api` in `client/.env` before `npm run start` so the built UI talks to the same host.
 
 In **development**, the browser uses **`/api`** on the Vite dev server, which **proxies** to the API (`DEV_PROXY_TARGET` in `client/.env`, default `http://127.0.0.1:5001`).
 
-If MongoDB is not running locally, the server falls back to an in-memory database.
+If MongoDB is not installed, the server stores everything in **`data/mongodb`** (WiredTiger). Back up that folder to keep your records safe.
 
 ### Windows notes
 
@@ -68,7 +86,8 @@ Change **`PORT`** in `server/.env` (e.g. `5001`) and match **`DEV_PROXY_TARGET`*
 
 | Command | Description |
 |---------|-------------|
-| `npm run setup` | Create `.env` files from examples (all platforms) |
+| `npm run install:app` | Full one-time setup (env + install + seed) |
+| `npm run setup` | Create `.env` files only |
 | `npm run install:all` | Install dependencies (root, client, server) |
 | `npm run dev` | Start client and server |
 | `npm run start` | Build UI + run API (serves app on `PORT`) |
