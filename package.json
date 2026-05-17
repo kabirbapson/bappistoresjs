@@ -2,14 +2,21 @@
   "name": "bappistores",
   "private": true,
   "version": "0.0.0",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "setup": "node scripts/setup.mjs",
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server",
+    "dev": "concurrently -k \"npm run dev --prefix server\" \"wait-on -t 120000 http-get://127.0.0.1:5001/api/health && npm run dev --prefix client\"",
     "dev:client": "npm run dev --prefix client",
     "dev:server": "npm run dev --prefix server",
     "build": "npm run build --prefix client",
-    "seed": "npm run seed --prefix server"
+    "seed": "npm run seed --prefix server",
+    "start": "npm run build && npm run start --prefix server"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "wait-on": "^8.0.3"
   }
 }

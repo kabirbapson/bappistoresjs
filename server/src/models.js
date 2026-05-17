@@ -8,9 +8,10 @@ const productSchema = new mongoose.Schema(
   {
     name: String,
     category: String,
+    imageUrl: String,
     quantity: { type: Number, default: 0 },
     costPrice: Number,
-    sellingPrice: Number
+    sellingPrice: Number,
   },
   { timestamps: true }
 );
@@ -20,14 +21,28 @@ const customerSchema = new mongoose.Schema(
 );
 const saleSchema = new mongoose.Schema(
   {
-    products: [{ productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" }, quantity: Number, costPrice: Number, sellingPrice: Number }],
+    invoiceNumber: { type: String, unique: true, sparse: true },
+    products: [{
+      productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+      productName: String,
+      quantity: Number,
+      costPrice: Number,
+      sellingPrice: Number,
+    }],
     totalAmount: Number,
     totalCost: Number,
     profit: Number,
-    type: { type: String, enum: ["cash", "credit"] },
+    type: { type: String, enum: ["paid", "partial", "credit", "cash"], default: "paid" },
+    amountPaid: { type: Number, default: 0 },
+    creditBalance: { type: Number, default: 0 },
+    payments: [{
+      method: { type: String, enum: ["cash", "pos", "transfer"] },
+      amount: Number,
+    }],
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer" },
+    customerName: String,
     note: String,
-    date: { type: Date, default: Date.now }
+    date: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
@@ -49,7 +64,7 @@ const paymentSchema = new mongoose.Schema(
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true },
     amount: Number,
     date: { type: Date, default: Date.now },
-    method: { type: String, default: "cash" }
+    method: { type: String, enum: ["cash", "pos", "transfer"], default: "cash" },
   },
   { timestamps: true }
 );
