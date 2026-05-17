@@ -27,4 +27,4 @@ echo ""
 
 (sleep 12 && open "http://bappistores:5001/" 2>/dev/null) &
 
-npm run start
+node scripts/start-shop.mjs

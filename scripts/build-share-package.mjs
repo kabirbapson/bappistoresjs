@@ -2,13 +2,12 @@
  * Creates BappiStores-Share/ — zip this folder and send to other computers.
  * Run: npm run build:share
  */
-import { spawnSync } from 'child_process'
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
+import { runNpm } from './spawn-utils.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const isWin = process.platform === 'win32'
 const dest = join(root, 'BappiStores-Share')
 
 const COPY_DIRS = ['client', 'server', 'scripts']
@@ -59,13 +58,10 @@ function copyDir(src, dst) {
 console.log('Building share package...\n')
 
 console.log('Step 1 — Build shop UI (client/dist)…')
-const build = spawnSync(isWin ? 'npm.cmd' : 'npm', ['run', 'build', '--prefix', 'client'], {
-  cwd: root,
-  stdio: 'inherit',
-  shell: isWin,
-})
-if (build.status !== 0) {
-  console.error('\nBuild failed. Fix errors above, then run npm run build:share again.\n')
+try {
+  runNpm(['run', 'build'], join(root, 'client'))
+} catch (err) {
+  console.error('\nBuild failed:', err.message)
   process.exit(1)
 }
 
@@ -115,6 +111,8 @@ Run BACKUP.bat before updating (recommended).
 Do NOT delete:
   data/mongodb     — all sales, products, customers, debts
   server/uploads   — product photos you uploaded
+
+Setup failed? Open setup-log.txt (Windows) and send to IT.
 
 More help: SETUP.txt and UPGRADE.txt
 `,
