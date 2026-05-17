@@ -89,5 +89,9 @@ Port already in use
   → Edit server\.env and change PORT=5001 to PORT=5002
   → Open http://bappistores:5002 instead.
 
+Setup failed on Windows?
+  → Open  setup-log.txt  in this folder (created by SETUP.bat)
+  → Send that file to your IT contact.
+
 Need help?
-  → Send a photo of the error message to your IT contact.
+  → Send setup-log.txt or a photo of the error message to your IT contact.

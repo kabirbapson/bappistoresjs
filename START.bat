@@ -1,4 +1,5 @@
 @echo off
+setlocal
 title Bappi Stores
 cd /d "%~dp0"
 
@@ -29,5 +30,12 @@ echo.
 
 start "" cmd /c "timeout /t 12 /nobreak >nul & start http://bappistores:5001/"
 
-npm run start
+node "%~dp0scripts\start-shop.mjs"
+if errorlevel 1 (
+  echo.
+  echo  The app stopped with an error. Try running SETUP.bat or UPDATE.bat again.
+  pause
+  exit /b 1
+)
 pause
+exit /b 0
