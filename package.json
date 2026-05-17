@@ -14,7 +14,8 @@
     "dev:server": "npm run dev --prefix server",
     "build": "npm run build --prefix client",
     "seed": "npm run seed --prefix server",
-    "start": "npm run build && npm run start --prefix server"
+    "start": "npm run build && npm run start --prefix server",
+    "build:share": "node scripts/build-share-package.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
