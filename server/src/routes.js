@@ -11,6 +11,8 @@ import {
   normalizePaymentsInput,
   normalizeSaleRecord,
 } from "./salePayments.js";
+import { verifyDeletePassword } from "./deleteAuth.js";
+import { productImageUpload } from "./productUpload.js";
 import { Customer, Debt, Payment, Product, Sale, StockLog, User } from "./models.js";
 
 const router = express.Router();
@@ -37,6 +39,17 @@ router.get("/products", async (req, res) => {
     Product.countDocuments(filter),
   ]);
   res.json({ items, total, page, pages: Math.ceil(total / limit) });
+});
+router.post("/products/image", (req, res, next) => {
+  productImageUpload.single("image")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message || "Upload failed" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+    res.status(201).json({ imageUrl: `/uploads/products/${req.file.filename}` });
+  });
 });
 router.post("/products", async (req, res) => res.status(201).json(await Product.create(req.body)));
 router.put("/products/:id", async (req, res) => res.json(await Product.findByIdAndUpdate(req.params.id, req.body, { new: true })));
@@ -74,6 +87,9 @@ router.put("/customers/:id", async (req, res) => {
   res.json(doc);
 });
 router.delete("/customers/:id", async (req, res) => {
+  const check = verifyDeletePassword(req);
+  if (check.error) return res.status(403).json({ message: check.error });
+
   const openDebt = await Debt.findOne({ customerId: req.params.id, balance: { $gt: 0 } });
   if (openDebt) {
     return res.status(400).json({ message: "Customer has outstanding debt — settle on Debts page first" });
@@ -129,14 +145,28 @@ router.post("/sales", async (req, res) => {
     await product.save();
     await StockLog.create({ productId: product._id, change: -Number(item.quantity), type: "sale" });
 
-    totalAmount += product.sellingPrice * Number(item.quantity);
+    const listPrice = Number(product.sellingPrice) || 0;
+    const unitPrice =
+      item.unitPrice != null && item.unitPrice !== ""
+        ? Number(item.unitPrice)
+        : listPrice;
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      return res.status(400).json({ message: `Invalid sale price for ${product.name}` });
+    }
+    if (unitPrice > listPrice) {
+      return res.status(400).json({
+        message: `Sale price cannot be above list price (${listPrice}) for ${product.name}`,
+      });
+    }
+
+    totalAmount += unitPrice * Number(item.quantity);
     totalCost += product.costPrice * Number(item.quantity);
     saleProducts.push({
       productId: product._id,
       productName: product.name,
       quantity: Number(item.quantity),
       costPrice: product.costPrice,
-      sellingPrice: product.sellingPrice,
+      sellingPrice: unitPrice,
     });
   }
 
@@ -193,8 +223,60 @@ router.get("/sales/:id", async (req, res) => {
   res.json(formatInvoice(sale, sale.customerId));
 });
 
+router.delete("/sales/:id", async (req, res) => {
+  const check = verifyDeletePassword(req);
+  if (check.error) return res.status(403).json({ message: check.error });
+
+  const sale = await Sale.findById(req.params.id);
+  if (!sale) return res.status(404).json({ message: "Sale not found" });
+
+  for (const line of sale.products || []) {
+    const product = await Product.findById(line.productId);
+    if (!product) continue;
+    const qty = Number(line.quantity) || 0;
+    product.quantity += qty;
+    await product.save();
+    await StockLog.create({ productId: product._id, change: qty, type: "restock" });
+  }
+
+  const debt = await Debt.findOne({ saleId: sale._id });
+  if (debt) {
+    await Payment.deleteMany({ debtId: debt._id });
+    await Debt.findByIdAndDelete(debt._id);
+  }
+
+  await Sale.findByIdAndDelete(sale._id);
+  res.json({ ok: true });
+});
+
 router.get("/debts", async (req, res) => res.json({ items: await Debt.find().populate("customerId").sort({ createdAt: -1 }) }));
 router.get("/debts/:id", async (req, res) => res.json(await Debt.findById(req.params.id).populate("customerId")));
+
+router.delete("/debts/:id", async (req, res) => {
+  const check = verifyDeletePassword(req);
+  if (check.error) return res.status(403).json({ message: check.error });
+
+  const debt = await Debt.findById(req.params.id);
+  if (!debt) return res.status(404).json({ message: "Debt not found" });
+
+  await Payment.deleteMany({ debtId: debt._id });
+
+  if (debt.saleId) {
+    const sale = await Sale.findById(debt.saleId);
+    if (sale) {
+      const total = sale.totalAmount || 0;
+      const paid = sale.amountPaid || 0;
+      sale.creditBalance = 0;
+      if (paid >= total && total > 0) sale.type = "paid";
+      else if (paid > 0) sale.type = "partial";
+      else sale.type = "paid";
+      await sale.save();
+    }
+  }
+
+  await Debt.findByIdAndDelete(debt._id);
+  res.json({ ok: true });
+});
 
 router.post("/payments", async (req, res) => {
   const { debtId, amount, method } = req.body;

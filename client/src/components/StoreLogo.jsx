@@ -1,13 +1,12 @@
-import { STORE_NAME } from '../constants'
+import { STORE_LOGO_SRC, STORE_NAME } from '../constants'
 
-export default function StoreLogo({ className = 'h-12 w-auto object-contain' }) {
+export default function StoreLogo({ className = 'h-12 w-auto max-w-full object-contain' }) {
   return (
     <img
-      src="/logo.png"
+      src={STORE_LOGO_SRC}
       alt={STORE_NAME}
       className={className}
-      width={120}
-      height={120}
+      decoding="async"
     />
   )
 }

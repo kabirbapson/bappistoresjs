@@ -1,0 +1,52 @@
+BAPPI STORES — INSTALLING AN UPDATE (KEEP YOUR RECORDS)
+======================================================
+
+Your sales, products, customers, debts, and uploaded product photos are
+stored on THIS computer in:
+
+  data\mongodb        (database)
+  server\uploads      (product photos)
+
+SETUP.bat is for a BRAND-NEW computer only.
+For updates, use UPDATE.bat so sample data is not re-loaded.
+
+
+OPTION A — Update in the same folder (easiest)
+----------------------------------------------
+1. Run BACKUP.bat (saves a copy to Backups\ — recommended)
+2. Close START.bat if the app is running
+3. Replace app files with the new zip (from your supplier)
+   BUT do NOT delete or overwrite:
+     - data\
+     - server\uploads\
+     - server\.env   (optional — keep your settings)
+4. Double-click UPDATE.bat
+5. Double-click START.bat
+
+Your records stay because the  data  folder was never removed.
+
+
+OPTION B — New folder on the same PC
+--------------------------------------
+1. Run BACKUP.bat on the OLD folder
+2. Install the new zip in a NEW folder (e.g. Desktop\BappiStores-new)
+3. Run SETUP.bat in the NEW folder (first time for that folder)
+4. Copy from the OLD folder into the NEW folder:
+     - the whole  data\mongodb  folder  →  data\mongodb
+     - the whole  server\uploads  folder  →  server\uploads
+5. Run UPDATE.bat in the NEW folder
+6. Use START.bat in the NEW folder from now on
+
+
+WHAT NEVER TO DELETE
+--------------------
+  data\mongodb
+  server\uploads
+
+If you delete data\mongodb, all sales history is gone unless you have a backup.
+
+
+BACKUP REMINDER
+---------------
+BACKUP.bat copies database + photos to Backups\BappiStores-YYYY-MM-DD\
+Copy that folder to USB or Google Drive regularly.

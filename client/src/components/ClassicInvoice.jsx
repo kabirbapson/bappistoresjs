@@ -2,15 +2,18 @@ import StoreBranding from './StoreBranding'
 import { paymentMethodLabel } from '../constants'
 import { formatDate, formatNaira } from '../utils/format'
 
-export default function ClassicInvoice({ invoice, className = '' }) {
+/** variant "document" = no extra padding (used in print + A4 preview frame). */
+export default function ClassicInvoice({ invoice, className = '', variant = 'default' }) {
   if (!invoice) return null
 
   const hasCredit = (invoice.creditBalance || 0) > 0
+  const shell =
+    variant === 'document'
+      ? 'classic-invoice mx-auto bg-white text-slate-900'
+      : 'classic-invoice mx-auto bg-white p-6 text-slate-900 shadow-inner sm:p-8'
 
   return (
-    <article
-      className={`classic-invoice mx-auto bg-white p-6 text-slate-900 shadow-inner sm:p-8 ${className}`}
-    >
+    <article className={`${shell} ${className}`}>
       <header className="flex flex-col gap-4 border-b-2 border-slate-800 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <StoreBranding
           align="left"

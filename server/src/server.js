@@ -9,8 +9,10 @@ import { fileURLToPath } from "url";
 import { closeDB, connectDB } from "./config/db.js";
 import { bootstrapIfEmpty } from "./bootstrap.js";
 import router from "./routes.js";
+import { productUploadsDir } from "./productUpload.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadsRoot = path.resolve(__dirname, "../uploads");
 const clientDist = path.resolve(__dirname, "../../client/dist");
 const clientIndex = path.join(clientDist, "index.html");
 
@@ -27,6 +29,7 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+app.use("/uploads", express.static(uploadsRoot));
 app.use("/api", router);
 
 if (existsSync(clientIndex)) {

@@ -42,10 +42,13 @@ export default function SalesPage() {
     return products.filter((p) => p.name?.toLowerCase().includes(q))
   }, [products, productSearch])
 
+  const lineUnitPrice = (line, product) =>
+    line.unitPrice != null ? line.unitPrice : product?.sellingPrice ?? 0
+
   const cartTotal = useMemo(() => {
     return cart.reduce((sum, line) => {
       const p = products.find((x) => x._id === line.productId)
-      return sum + (p ? p.sellingPrice * line.quantity : 0)
+      return sum + (p ? lineUnitPrice(line, p) * line.quantity : 0)
     }, 0)
   }, [cart, products])
 
@@ -82,8 +85,33 @@ export default function SalesPage() {
         )
       }
       toast.success(`Added ${p.name}`)
-      return [...prev, { productId, quantity: 1 }]
+      return [...prev, { productId, quantity: 1, unitPrice: p.sellingPrice }]
     })
+  }
+
+  const updateCartPrice = (productId, nextPrice) => {
+    const p = products.find((x) => x._id === productId)
+    if (!p) return
+
+    if (nextPrice === '' || nextPrice === null) {
+      setCart((prev) =>
+        prev.map((l) =>
+          l.productId === productId ? { ...l, unitPrice: p.sellingPrice } : l,
+        ),
+      )
+      return
+    }
+
+    const price = Number(nextPrice)
+    if (!Number.isFinite(price) || price < 0) return
+    if (price > p.sellingPrice) {
+      toast.error(`Cannot exceed list price ${formatNaira(p.sellingPrice)}`)
+      return
+    }
+
+    setCart((prev) =>
+      prev.map((l) => (l.productId === productId ? { ...l, unitPrice: price } : l)),
+    )
   }
 
   const updateCartQty = (productId, nextQty) => {
@@ -139,10 +167,15 @@ export default function SalesPage() {
     }
     try {
       const payload = {
-        products: cart.map((l) => ({
-          productId: l.productId,
-          quantity: Number(l.quantity),
-        })),
+        products: cart.map((l) => {
+          const p = products.find((x) => x._id === l.productId)
+          const unitPrice = p ? lineUnitPrice(l, p) : l.unitPrice
+          return {
+            productId: l.productId,
+            quantity: Number(l.quantity),
+            unitPrice,
+          }
+        }),
         payments: paymentRows,
         note: form.note,
       }
@@ -250,6 +283,7 @@ export default function SalesPage() {
                 lines={cart}
                 products={products}
                 onUpdateQty={updateCartQty}
+                onUpdatePrice={updateCartPrice}
                 onRemove={removeFromCart}
               />
             </div>

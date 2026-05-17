@@ -16,7 +16,7 @@ export default function Layout({ children }) {
               showLogo
               dark
               showPhones={false}
-              logoClassName="mx-auto h-12 w-auto max-w-[120px] object-contain"
+              logoClassName="mx-auto h-auto w-full max-w-[240px] object-contain"
               nameClassName="mt-2 text-xs font-bold leading-tight tracking-wide text-slate-100"
             />
           </div>

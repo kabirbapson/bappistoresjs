@@ -3,7 +3,7 @@
  * Run: node scripts/install.mjs   OR   double-click SETUP.bat / SETUP.command
  */
 import { spawnSync } from 'child_process'
-import { copyFileSync, existsSync, writeFileSync } from 'fs'
+import { copyFileSync, existsSync, readdirSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { appUrl } from './app-host.mjs'
@@ -73,8 +73,27 @@ log('\nStep 3/4 — Install packages (client + server)')
 npm(['install'], join(root, 'client'))
 npm(['install'], join(root, 'server'))
 
-log('\nStep 4/4 — Admin login + sample products')
-npm(['run', 'seed'], join(root, 'server'))
+function hasPersistedShopData() {
+  const dbPath = join(root, 'data/mongodb')
+  if (!existsSync(dbPath)) return false
+  try {
+    return readdirSync(dbPath).length > 0
+  } catch {
+    return false
+  }
+}
+
+const alreadyInstalled =
+  existsSync(join(root, '.setup-complete')) || hasPersistedShopData()
+
+if (alreadyInstalled) {
+  log('\nStep 4/4 — Shop data found (skipping sample seed)')
+  log('  Your existing sales, products, and customers are kept.')
+  log('  For a new version in this folder, use UPDATE.bat instead of SETUP.')
+} else {
+  log('\nStep 4/4 — Admin login + sample products (first install only)')
+  npm(['run', 'seed'], join(root, 'server'))
+}
 
 writeFileSync(join(root, '.setup-complete'), new Date().toISOString())
 
@@ -103,6 +122,8 @@ log(`Browser address: ${url}`)
 log('(Run CONFIGURE-HOSTNAME.bat as Admin once if that link does not open)')
 log('')
 log('Your data is saved in the  data/mongodb  folder.')
+log('Product photos are in  server/uploads .')
 log('It stays after shutdown — tomorrow you will see yesterday\'s sales.')
-log('Back up that folder to keep records safe.')
+log('Before updates: double-click BACKUP.bat')
+log('To install updates: double-click UPDATE.bat (not SETUP)')
 log('')

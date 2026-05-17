@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
+import NumericInput from '../components/NumericInput'
 import ProductAvatar from '../components/ProductAvatar'
+import { PRODUCT_PLACEHOLDER_SRC } from '../utils/productImage'
 import api from '../api'
 import { LOW_STOCK_THRESHOLD, PRODUCT_CATEGORY } from '../constants'
 import { formatNaira } from '../utils/format'
@@ -86,7 +88,9 @@ export default function ProductsPage() {
   const [restockId, setRestockId] = useState(null)
   const [restockProduct, setRestockProduct] = useState(null)
   const [restockQty, setRestockQty] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
   const formRef = useRef(null)
+  const imageInputRef = useRef(null)
 
   const load = useCallback(() => {
     api.get(`/products?q=${encodeURIComponent(query)}`).then((r) => setProducts(r.data.items))
@@ -116,7 +120,13 @@ export default function ProductsPage() {
 
   const save = async (e) => {
     e.preventDefault()
-    const payload = { ...form, category: PRODUCT_CATEGORY }
+    const payload = {
+      ...form,
+      category: PRODUCT_CATEGORY,
+      quantity: Number(form.quantity) || 0,
+      costPrice: Number(form.costPrice) || 0,
+      sellingPrice: Number(form.sellingPrice) || 0,
+    }
     try {
       if (editing) {
         await api.put(`/products/${editing._id}`, payload)
@@ -148,6 +158,37 @@ export default function ProductsPage() {
   const cancelEdit = () => {
     setEditing(null)
     setForm(emptyProduct)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
+  const onImageSelected = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const okType = /^image\/(jpeg|png|jpg)$/i.test(file.type)
+    const okName = /\.(jpe?g|png)$/i.test(file.name)
+    if (!okType && !okName) {
+      toast.error('Only PNG or JPG images are allowed')
+      e.target.value = ''
+      return
+    }
+    setUploadingImage(true)
+    try {
+      const body = new FormData()
+      body.append('image', file)
+      const { data } = await api.post('/products/image', body)
+      setForm((f) => ({ ...f, imageUrl: data.imageUrl }))
+      toast.success('Photo uploaded')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to upload photo')
+    } finally {
+      setUploadingImage(false)
+      e.target.value = ''
+    }
+  }
+
+  const clearImage = () => {
+    setForm((f) => ({ ...f, imageUrl: '' }))
+    if (imageInputRef.current) imageInputRef.current.value = ''
   }
 
   const openRestock = (p) => {
@@ -424,25 +465,50 @@ export default function ProductsPage() {
               />
             </label>
 
-            <label className="block text-base">
-              <span className="mb-1 block font-medium text-slate-700">Image URL (optional)</span>
-              <input
-                placeholder="https://… product photo"
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-base focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                value={form.imageUrl}
-                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-              />
-            </label>
+            <div className="block text-base">
+              <span className="mb-1 block font-medium text-slate-700">Product photo (optional)</span>
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  <img
+                    src={form.imageUrl || PRODUCT_PLACEHOLDER_SRC}
+                    alt=""
+                    className="h-20 w-20 bg-slate-50 object-contain object-center"
+                  />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,.jpg,.jpeg,.png"
+                    disabled={uploadingImage}
+                    onChange={onImageSelected}
+                    className="w-full text-sm file:mr-2 file:rounded-lg file:border-0 file:bg-emerald-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-800 disabled:opacity-50"
+                  />
+                  <p className="text-sm text-slate-500">PNG or JPG, up to 5 MB</p>
+                  {form.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      className="text-sm font-medium text-rose-700 hover:underline"
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                  {uploadingImage && (
+                    <p className="text-sm text-emerald-700">Uploading…</p>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <label className="block text-base">
               <span className="mb-1 block font-medium text-slate-700">Stock quantity *</span>
-              <input
-                type="number"
-                min="0"
+              <NumericInput
                 placeholder="0"
+                allowEmpty={false}
                 className="w-full rounded-lg border border-slate-200 p-2.5 text-base font-semibold tabular-nums focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
+                onChange={(quantity) => setForm({ ...form, quantity })}
                 required
               />
             </label>
@@ -450,35 +516,33 @@ export default function ProductsPage() {
             <div className="grid grid-cols-2 gap-2">
               <label className="block text-base">
                 <span className="mb-1 block font-medium text-slate-700">Cost (₦) *</span>
-                <input
-                  type="number"
-                  min="0"
+                <NumericInput
                   placeholder="Cost"
                   className="w-full rounded-lg border border-slate-200 p-2.5 text-base font-semibold tabular-nums focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   value={form.costPrice}
-                  onChange={(e) => setForm({ ...form, costPrice: Number(e.target.value) })}
+                  onChange={(costPrice) => setForm({ ...form, costPrice })}
                   required
                 />
               </label>
               <label className="block text-base">
                 <span className="mb-1 block font-medium text-slate-700">Sell (₦) *</span>
-                <input
-                  type="number"
-                  min="0"
+                <NumericInput
                   placeholder="Sell"
                   className="w-full rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5 text-base font-semibold tabular-nums text-emerald-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   value={form.sellingPrice}
-                  onChange={(e) => setForm({ ...form, sellingPrice: Number(e.target.value) })}
+                  onChange={(sellingPrice) => setForm({ ...form, sellingPrice })}
                   required
                 />
               </label>
             </div>
 
-            {form.sellingPrice > 0 && (
+            {(Number(form.sellingPrice) || 0) > 0 && (
               <p className="rounded-lg bg-sky-50 px-3 py-2 text-base text-sky-900">
                 Margin per unit:{' '}
                 <strong className="tabular-nums">
-                  {formatNaira(Math.max(0, form.sellingPrice - form.costPrice))}
+                  {formatNaira(
+                    Math.max(0, (Number(form.sellingPrice) || 0) - (Number(form.costPrice) || 0)),
+                  )}
                 </strong>
               </p>
             )}
@@ -514,13 +578,11 @@ export default function ProductsPage() {
             </div>
             <label className="block text-base">
               <span className="mb-1 block font-medium text-slate-700">Units to add *</span>
-              <input
-                type="number"
-                min="1"
+              <NumericInput
                 placeholder="e.g. 24"
                 className="w-full rounded-lg border border-slate-200 p-3 text-lg font-semibold tabular-nums focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                value={restockQty}
-                onChange={(e) => setRestockQty(e.target.value)}
+                value={restockQty === '' ? '' : Number(restockQty)}
+                onChange={(v) => setRestockQty(v === '' ? '' : String(v))}
                 required
                 autoFocus
               />

@@ -1,27 +1,21 @@
 import { useState } from 'react'
-import { getCategoryIcon } from '../utils/productImage'
+import { PRODUCT_PLACEHOLDER_SRC } from '../utils/productImage'
 
 export default function ProductAvatar({ product, className = 'h-16 w-16 rounded-lg' }) {
   const [failed, setFailed] = useState(false)
-  const showImage = product?.imageUrl && !failed
-
-  if (showImage) {
-    return (
-      <img
-        src={product.imageUrl}
-        alt=""
-        className={`${className} object-cover`}
-        onError={() => setFailed(true)}
-      />
-    )
-  }
+  const hasProductImage = Boolean(product?.imageUrl) && !failed
+  const src = hasProductImage ? product.imageUrl : PRODUCT_PLACEHOLDER_SRC
 
   return (
-    <div
-      className={`${className} flex items-center justify-center bg-slate-100 text-3xl`}
-      aria-hidden
-    >
-      {getCategoryIcon()}
+    <div className={`${className} overflow-hidden bg-slate-50`}>
+      <img
+        src={src}
+        alt=""
+        className="h-full w-full object-contain object-center"
+        onError={() => {
+          if (hasProductImage) setFailed(true)
+        }}
+      />
     </div>
   )
 }

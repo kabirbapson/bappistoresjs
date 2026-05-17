@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
+import NumericInput from '../components/NumericInput'
+import PasswordDeleteDialog from '../components/PasswordDeleteDialog'
 import api from '../api'
+import { deleteWithPassword } from '../utils/secureDelete'
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants'
 import { formatDateTable, formatNaira } from '../utils/format'
 
@@ -55,6 +58,7 @@ export default function DebtsPage() {
   const [payments, setPayments] = useState({})
   const [methods, setMethods] = useState({})
   const [payingId, setPayingId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -127,6 +131,19 @@ export default function DebtsPage() {
 
   const setQuickPay = (debtId, balance) => {
     setPayments((prev) => ({ ...prev, [debtId]: String(balance) }))
+  }
+
+  const confirmDeleteDebt = async (password) => {
+    if (!deleteTarget) return
+    try {
+      await deleteWithPassword(`/debts/${deleteTarget._id}`, password)
+      toast.success('Debt record deleted')
+      setDeleteTarget(null)
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete debt')
+      throw err
+    }
   }
 
   return (
@@ -237,23 +254,25 @@ export default function DebtsPage() {
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full table-fixed border-collapse text-sm">
+              <table className="w-full table-fixed border-collapse text-base">
                 <colgroup>
-                  <col className="w-[20%]" />
+                  <col className="w-[16.8%]" />
                   <col className="w-[9%]" />
                   <col className="w-[11%]" />
                   <col className="w-[11%]" />
                   <col className="w-[11%]" />
-                  <col className="w-[38%]" />
+                  <col className="w-[35.2%]" />
+                  <col className="w-[8%]" />
                 </colgroup>
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-gradient-to-r from-slate-800 to-slate-700 text-left text-xs uppercase tracking-wide text-white">
-                    <th className="p-3 font-semibold">Customer</th>
-                    <th className="p-3 font-semibold">Status</th>
-                    <th className="p-3 text-right font-semibold">Total</th>
-                    <th className="p-3 text-right font-semibold">Paid</th>
-                    <th className="p-3 text-right font-semibold">Balance</th>
-                    <th className="p-3 font-semibold">Record payment</th>
+                  <tr className="bg-gradient-to-r from-slate-800 to-slate-700 text-center text-sm uppercase tracking-wide text-white">
+                    <th className="whitespace-nowrap p-3 font-semibold">Customer</th>
+                    <th className="whitespace-nowrap p-3 font-semibold">Status</th>
+                    <th className="whitespace-nowrap p-3 font-semibold">Total</th>
+                    <th className="whitespace-nowrap p-3 font-semibold">Paid</th>
+                    <th className="whitespace-nowrap p-3 font-semibold">Balance</th>
+                    <th className="whitespace-nowrap p-3 font-semibold">Record payment</th>
+                    <th className="whitespace-nowrap p-3 font-semibold"> </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -271,45 +290,49 @@ export default function DebtsPage() {
                           index % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/80 hover:bg-slate-100'
                         }`}
                       >
-                        <td className="p-3 align-top">
-                          <p className="font-semibold text-slate-900">{name}</p>
-                          {phone && (
-                            <p className="mt-0.5 text-xs tabular-nums text-slate-500">{phone}</p>
-                          )}
-                          {d.createdAt && (
-                            <p className="mt-1 text-xs text-slate-400">
-                              Since {formatDateTable(d.createdAt)}
+                        <td className="p-3 text-left align-middle">
+                          <div className="mx-auto max-w-full">
+                            <p className="truncate font-semibold text-slate-900" title={name}>
+                              {name}
                             </p>
-                          )}
+                            {phone && (
+                              <p className="mt-0.5 truncate text-sm tabular-nums text-slate-500">{phone}</p>
+                            )}
+                            {d.createdAt && (
+                              <p className="mt-1 whitespace-nowrap text-sm text-slate-400">
+                                Since {formatDateTable(d.createdAt)}
+                              </p>
+                            )}
+                          </div>
                         </td>
-                        <td className="p-3 align-top">
+                        <td className="whitespace-nowrap p-3 text-center align-middle">
                           <span
-                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${meta.badge}`}
+                            className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-semibold ring-1 ${meta.badge}`}
                           >
                             {meta.label}
                           </span>
                         </td>
-                        <td className="p-3 text-right align-top tabular-nums text-slate-700">
+                        <td className="whitespace-nowrap p-3 text-center align-middle tabular-nums text-slate-700">
                           {formatNaira(d.totalAmount)}
                         </td>
-                        <td className="p-3 text-right align-top tabular-nums text-emerald-800">
+                        <td className="whitespace-nowrap p-3 text-center align-middle tabular-nums text-emerald-800">
                           {formatNaira(d.amountPaid)}
                         </td>
-                        <td className="p-3 text-right align-top font-bold tabular-nums text-rose-700">
+                        <td className="whitespace-nowrap p-3 text-center align-middle font-bold tabular-nums text-rose-700">
                           {formatNaira(d.balance)}
                         </td>
-                        <td className="p-3 align-middle">
+                        <td className="p-3 text-center align-middle">
                           {canPay ? (
-                            <div className="flex w-full flex-nowrap items-center gap-2">
+                            <div className="mx-auto flex w-full max-w-full flex-nowrap items-center justify-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => setQuickPay(d._id, d.balance)}
-                                className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 text-base font-medium text-slate-700 hover:bg-slate-100"
                               >
                                 Full balance
                               </button>
                               <select
-                                className="w-[5.25rem] shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                className="inline-flex h-10 w-[5.5rem] shrink-0 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2 text-base focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                                 value={methods[d._id] || 'cash'}
                                 onChange={(e) =>
                                   setMethods({ ...methods, [d._id]: e.target.value })
@@ -321,29 +344,42 @@ export default function DebtsPage() {
                                   </option>
                                 ))}
                               </select>
-                              <input
-                                type="number"
-                                min="1"
-                                max={d.balance}
-                                className="min-w-0 flex-1 rounded-lg border border-slate-200 p-2 text-base font-semibold tabular-nums focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                                value={payments[d._id] || ''}
-                                onChange={(e) =>
-                                  setPayments({ ...payments, [d._id]: e.target.value })
-                                }
+                              <NumericInput
                                 placeholder="Amount"
+                                className="h-10 min-w-[5rem] max-w-[8rem] flex-1 rounded-lg border border-slate-200 px-2 py-0 text-center text-base font-semibold tabular-nums leading-10 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                value={
+                                  payments[d._id] === '' || payments[d._id] == null
+                                    ? ''
+                                    : Number(payments[d._id])
+                                }
+                                onChange={(v) =>
+                                  setPayments({
+                                    ...payments,
+                                    [d._id]: v === '' ? '' : String(v),
+                                  })
+                                }
                               />
                               <button
                                 type="button"
                                 disabled={isPaying}
                                 onClick={() => pay(d._id)}
-                                className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50"
+                                className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-lg bg-emerald-700 px-4 text-base font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50"
                               >
                                 {isPaying ? '…' : 'Record'}
                               </button>
                             </div>
                           ) : (
-                            <span className="text-xs font-medium text-emerald-700">Settled</span>
+                            <span className="text-base font-medium text-emerald-700">Settled</span>
                           )}
+                        </td>
+                        <td className="whitespace-nowrap p-3 text-center align-middle">
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(d)}
+                            className="inline-flex h-10 items-center whitespace-nowrap rounded-lg border border-rose-200 bg-rose-50 px-3 text-base font-medium text-rose-700 hover:bg-rose-100"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     )
@@ -354,6 +390,18 @@ export default function DebtsPage() {
           </div>
         )}
       </div>
+
+      <PasswordDeleteDialog
+        open={!!deleteTarget}
+        title="Delete debt record"
+        message={
+          deleteTarget
+            ? `Remove the debt record for ${deleteTarget.customerId?.name || 'this customer'}? Payment history for this debt will be deleted. The sale invoice is kept unless you delete it on Invoices.`
+            : ''
+        }
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteDebt}
+      />
     </PageShell>
   )
 }

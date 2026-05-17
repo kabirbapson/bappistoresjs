@@ -11,7 +11,9 @@ node_modules
 client/node_modules
 server/node_modules
 data/mongodb
+server/uploads
 BappiStores-Share
+Backups
 dist
 dist-ssr
 *.local

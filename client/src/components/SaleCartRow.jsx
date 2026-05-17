@@ -1,8 +1,16 @@
+import NumericInput from './NumericInput'
 import ProductAvatar from './ProductAvatar'
 import { QUICK_QUANTITIES } from '../constants'
 import { formatNaira } from '../utils/format'
 
-export default function SaleCartRow({ lines, products, onUpdateQty, onRemove, compact = false }) {
+export default function SaleCartRow({
+  lines,
+  products,
+  onUpdateQty,
+  onUpdatePrice,
+  onRemove,
+  compact = false,
+}) {
   if (lines.length === 0) {
     return (
       <p
@@ -15,7 +23,7 @@ export default function SaleCartRow({ lines, products, onUpdateQty, onRemove, co
     )
   }
 
-  const cardW = compact ? 'w-[168px]' : 'w-[188px]'
+  const cardW = compact ? 'w-[180px]' : 'w-[200px]'
   const avatarH = compact ? 'h-12' : 'h-14'
   const btnSize = compact ? 'h-9 w-9 text-lg' : 'h-9 w-9 text-sm'
   const inputH = compact ? 'h-9 text-base font-bold' : 'h-9 text-sm'
@@ -26,7 +34,10 @@ export default function SaleCartRow({ lines, products, onUpdateQty, onRemove, co
         {lines.map((line) => {
           const product = products.find((p) => p._id === line.productId)
           if (!product) return null
-          const lineTotal = product.sellingPrice * line.quantity
+          const listPrice = product.sellingPrice
+          const unitPrice = line.unitPrice != null ? line.unitPrice : listPrice
+          const lineTotal = unitPrice * line.quantity
+          const hasDiscount = unitPrice < listPrice
           const quickQty = QUICK_QUANTITIES.filter((q) => q <= product.quantity)
 
           return (
@@ -44,9 +55,27 @@ export default function SaleCartRow({ lines, products, onUpdateQty, onRemove, co
               >
                 {product.name}
               </p>
-              <p className={compact ? 'text-sm font-medium text-slate-700' : 'text-[11px] text-slate-600'}>
-                {formatNaira(product.sellingPrice)} each
-              </p>
+              <label className={`block ${compact ? 'mt-1' : 'mt-2'}`}>
+                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                  Sale price
+                </span>
+                <NumericInput
+                  allowEmpty={false}
+                  value={unitPrice}
+                  onChange={(v) => onUpdatePrice?.(line.productId, v === '' ? listPrice : v)}
+                  className={`mt-0.5 w-full rounded border bg-white px-1.5 text-center font-semibold tabular-nums text-slate-900 ${
+                    compact ? 'h-8 text-sm' : 'h-9 text-sm'
+                  }`}
+                />
+              </label>
+              {hasDiscount ? (
+                <p className="text-center text-[10px] text-slate-500">
+                  List {formatNaira(listPrice)}
+                  <span className="mx-1 text-amber-700">−{formatNaira(listPrice - unitPrice)}</span>
+                </p>
+              ) : (
+                <p className="text-center text-[10px] text-slate-500">List {formatNaira(listPrice)}</p>
+              )}
 
               <div className={`flex items-center gap-0.5 ${compact ? 'mt-1' : 'mt-2'}`}>
                 <button
@@ -57,12 +86,10 @@ export default function SaleCartRow({ lines, products, onUpdateQty, onRemove, co
                 >
                   −
                 </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={product.quantity}
+                <NumericInput
+                  allowEmpty={false}
                   value={line.quantity}
-                  onChange={(e) => onUpdateQty(line.productId, e.target.value)}
+                  onChange={(v) => onUpdateQty(line.productId, v === '' ? 1 : v)}
                   className={`w-full min-w-[2.5rem] rounded border bg-white px-0.5 text-center font-bold ${inputH}`}
                 />
                 <button

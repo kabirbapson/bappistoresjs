@@ -13,9 +13,15 @@ body {
 }
 
 .thermal-receipt .receipt-logo {
-  height: 4rem;
-  max-width: 180px;
-  width: auto;
+  display: block;
+  width: 98%;
+  max-width: 98%;
+  height: auto;
+  max-height: 13rem;
+  margin-left: auto;
+  margin-right: auto;
+  object-fit: contain;
+  object-position: center;
 }
 
 .thermal-receipt .receipt-store-name {
@@ -28,9 +34,11 @@ html[data-receipt-mm='58'] .thermal-receipt {
 }
 
 html[data-receipt-mm='58'] .thermal-receipt .receipt-logo {
-  height: 3rem;
-  max-width: 130px;
-  width: auto;
+  width: 98%;
+  max-width: 98%;
+  margin-left: auto;
+  margin-right: auto;
+  max-height: 10rem;
 }
 
 html[data-receipt-mm='58'] .thermal-receipt .receipt-store-name {
@@ -49,6 +57,55 @@ html[data-receipt-mm='58'] .thermal-receipt .receipt-addresses {
   gap: 0.125rem;
 }
 
+/* On-screen preview — same width/padding as print */
+.thermal-receipt-preview {
+  width: 80mm;
+  max-width: 100%;
+  height: fit-content;
+  box-sizing: border-box;
+  padding: 2mm 1.5mm;
+  background: #fff;
+  color: #000;
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.12);
+}
+
+html[data-receipt-mm='58'] .thermal-receipt-preview {
+  width: 58mm;
+}
+
+.thermal-receipt-preview .thermal-receipt {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* A4 invoice — on-screen preview (matches print margins) */
+.classic-invoice-preview-shell {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #e2e8f0;
+}
+
+.classic-invoice-preview-page {
+  width: 210mm;
+  max-width: 100%;
+  height: fit-content;
+  flex-shrink: 0;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 12mm;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.12);
+}
+
+.classic-invoice-preview-page .classic-invoice {
+  max-width: none;
+  margin: 0;
+}
+
 .thermal-receipt-print,
 .classic-invoice-print {
   display: none;
@@ -56,77 +113,146 @@ html[data-receipt-mm='58'] .thermal-receipt .receipt-addresses {
 
 @page receipt-58 {
   size: 58mm auto;
-  margin: 2mm;
+  margin: 0;
 }
 
 @page receipt-80 {
   size: 80mm auto;
-  margin: 2mm;
+  margin: 0;
 }
 
 @page classic {
-  size: A4;
-  margin: 12mm;
+  size: A4 portrait;
+  margin: 0;
 }
 
 @media print {
-  body.printing-receipt * {
-    visibility: hidden !important;
-  }
-
-  body.printing-receipt #thermal-receipt-print,
-  body.printing-receipt #thermal-receipt-print * {
-    visibility: visible !important;
-  }
-
-  body.printing-receipt #thermal-receipt-print {
-    display: block !important;
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 80mm;
-    padding: 2mm;
-    background: white;
-    color: black;
-    page: receipt-80;
-  }
-
-  html[data-receipt-mm='58'] body.printing-receipt #thermal-receipt-print {
-    width: 58mm;
-    page: receipt-58;
-  }
-
   .no-print {
     display: none !important;
   }
 
-  /* Classic A4 invoice */
-  body.printing-classic-invoice * {
-    visibility: hidden !important;
+  /* —— Thermal receipt —— */
+  html.printing-receipt,
+  body.printing-receipt {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
   }
 
-  body.printing-classic-invoice #classic-invoice-print,
-  body.printing-classic-invoice #classic-invoice-print * {
-    visibility: visible !important;
+  /* visibility:hidden still reserves layout — use display:none so preview height = receipt only */
+  body.printing-receipt > *:not(#thermal-receipt-print) {
+    display: none !important;
+  }
+
+  body.printing-receipt #thermal-receipt-print {
+    display: block !important;
+    position: static !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 2mm 1.5mm !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+    box-sizing: border-box !important;
+    page: receipt-80;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html[data-receipt-mm='58'] body.printing-receipt #thermal-receipt-print {
+    width: 58mm !important;
+    max-width: 58mm !important;
+    page: receipt-58;
+  }
+
+  body.printing-receipt #thermal-receipt-print .thermal-receipt {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  body.printing-receipt #thermal-receipt-print .receipt-logo {
+    width: 98% !important;
+    max-width: 98% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  body.printing-receipt #thermal-receipt-print table {
+    display: table !important;
+    width: 100% !important;
+  }
+
+  body.printing-receipt #thermal-receipt-print tr {
+    display: table-row !important;
+  }
+
+  body.printing-receipt #thermal-receipt-print th,
+  body.printing-receipt #thermal-receipt-print td {
+    display: table-cell !important;
+  }
+
+  /* —— Classic A4 invoice (same pattern as thermal receipt) —— */
+  html.printing-classic-invoice,
+  body.printing-classic-invoice {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.printing-classic-invoice > *:not(#classic-invoice-print) {
+    display: none !important;
   }
 
   body.printing-classic-invoice #classic-invoice-print {
     display: block !important;
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    max-width: 210mm;
-    margin: 0 auto;
-    padding: 0;
-    background: white;
-    color: black;
-    box-shadow: none;
+    position: static !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+    box-sizing: border-box !important;
+    page: classic;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.printing-classic-invoice #classic-invoice-print .classic-invoice-preview-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 12mm !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
   }
 
   body.printing-classic-invoice #classic-invoice-print .classic-invoice {
-    page: classic;
-    max-width: none;
-    box-shadow: none;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  body.printing-classic-invoice #classic-invoice-print table {
+    display: table !important;
+    width: 100% !important;
+  }
+
+  body.printing-classic-invoice #classic-invoice-print tr {
+    display: table-row !important;
+  }
+
+  body.printing-classic-invoice #classic-invoice-print th,
+  body.printing-classic-invoice #classic-invoice-print td {
+    display: table-cell !important;
   }
 }

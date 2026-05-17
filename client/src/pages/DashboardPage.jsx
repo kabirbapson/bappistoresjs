@@ -103,7 +103,7 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <div className="shrink-0 rounded-lg bg-white p-2 shadow-sm">
-                  <StoreLogo className="h-12 w-auto max-w-[120px] object-contain" />
+                  <StoreLogo className="h-auto w-full max-w-[280px] object-contain" />
                 </div>
                 <p className="text-base font-bold leading-tight tracking-wide text-white sm:text-lg">
                   {STORE_NAME}

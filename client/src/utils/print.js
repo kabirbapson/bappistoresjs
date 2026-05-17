@@ -3,11 +3,40 @@ import {
   RECEIPT_PAPER_STORAGE_KEY,
 } from '../constants'
 
+const PRINT_ROOT_BY_MODE = {
+  'printing-receipt': 'thermal-receipt-print',
+  'printing-classic-invoice': 'classic-invoice-print',
+}
+
+/** Move print root to <body> so layout overflow:hidden does not clip the page. */
+function hoistPrintRoot(id) {
+  const el = document.getElementById(id)
+  if (!el || el.parentElement === document.body) return null
+  const marker = document.createComment(`print-anchor-${id}`)
+  el.parentElement.insertBefore(marker, el)
+  document.body.appendChild(el)
+  return marker
+}
+
+function restorePrintRoot(el, marker) {
+  if (!el || !marker?.parentNode) return
+  marker.parentNode.insertBefore(el, marker)
+  marker.remove()
+}
+
 function runPrint(mode) {
+  const rootId = PRINT_ROOT_BY_MODE[mode]
+  const root = rootId ? document.getElementById(rootId) : null
+  const marker = rootId ? hoistPrintRoot(rootId) : null
+
+  document.documentElement.classList.add(mode)
   document.body.classList.add(mode)
   window.print()
+
   const cleanup = () => {
+    document.documentElement.classList.remove(mode)
     document.body.classList.remove(mode)
+    restorePrintRoot(root, marker)
     window.removeEventListener('afterprint', cleanup)
   }
   window.addEventListener('afterprint', cleanup)

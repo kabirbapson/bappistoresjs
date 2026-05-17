@@ -15,11 +15,19 @@ export default defineConfig(({ mode }) => {
           target: proxyTarget,
           changeOrigin: true,
         },
+        "/uploads": {
+          target: proxyTarget,
+          changeOrigin: true,
+        },
       },
     },
     preview: {
       proxy: {
         "/api": {
+          target: proxyTarget,
+          changeOrigin: true,
+        },
+        "/uploads": {
           target: proxyTarget,
           changeOrigin: true,
         },

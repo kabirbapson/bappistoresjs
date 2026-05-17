@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import StoreBranding from './StoreBranding'
-import { paymentMethodLabel, RECEIPT_PAPER_OPTIONS } from '../constants'
+import {
+  paymentMethodLabel,
+  RECEIPT_PAPER_OPTIONS,
+  STORE_RECEIPT_FOOTER_ARABIC,
+} from '../constants'
 import { formatDate, formatNaira } from '../utils/format'
 import { getReceiptPaperMm, printThermalReceipt, setReceiptPaperMm } from '../utils/print'
 
-export default function InvoiceReceipt({ invoice, onClose, showActions = true }) {
+export default function InvoiceReceipt({
+  invoice,
+  onClose,
+  showActions = true,
+  title = 'Receipt preview',
+}) {
   const [paperMm, setPaperMm] = useState(() => getReceiptPaperMm())
 
   if (!invoice) return null
@@ -16,18 +25,20 @@ export default function InvoiceReceipt({ invoice, onClose, showActions = true })
 
   return (
     <div className={showActions ? 'fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center' : ''}>
-      <div className={`w-full max-w-md ${showActions ? 'rounded-t-2xl bg-white shadow-xl sm:rounded-2xl' : ''}`}>
+      <div className={`w-max max-w-[calc(100%-0.5rem)] ${showActions ? 'rounded-t-2xl bg-white shadow-xl sm:rounded-2xl' : ''}`}>
         {showActions && (
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <h3 className="font-semibold text-slate-900">Invoice preview</h3>
+            <h3 className="font-semibold text-slate-900">{title}</h3>
             <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
               Close
             </button>
           </div>
         )}
 
-        <div className="max-h-[70vh] overflow-y-auto p-4">
-          <ReceiptBody invoice={invoice} />
+        <div className="flex justify-center p-3 sm:p-4">
+          <div className="thermal-receipt-preview">
+            <ReceiptBody invoice={invoice} />
+          </div>
         </div>
 
         {showActions && (
@@ -66,8 +77,9 @@ export default function InvoiceReceipt({ invoice, onClose, showActions = true })
         )}
 
         <p className="no-print px-4 pb-4 text-center text-xs text-slate-500">
-          Default <strong>XP-80T</strong> (80mm): pair USB/BT, Print → Xprinter. Speed (200mm/s) is set on
-          the printer. Use 58mm only for MP-58MINI. Disable browser headers/footers if a URL shows on the slip.
+          Default <strong>XP-80T</strong> (80mm): choose <strong>{paperMm}mm</strong> paper (or custom width) and
+          scale <strong>100%</strong> in the print dialog. Use 58mm only for MP-58MINI. Turn off browser
+          headers/footers if a URL appears on the slip.
         </p>
       </div>
 
@@ -87,7 +99,7 @@ function ReceiptBody({ invoice }) {
         <StoreBranding
           showLogo
           receipt
-          logoClassName="receipt-logo mx-auto mb-2 object-contain"
+          logoClassName="receipt-logo mx-auto mb-2"
           nameClassName="receipt-store-name font-bold"
         />
       </header>
@@ -153,8 +165,11 @@ function ReceiptBody({ invoice }) {
         <p className="mt-2 text-center text-xs">Note: {invoice.note}</p>
       )}
 
-      <footer className="mt-3 border-t border-dashed border-black pt-2 text-center text-xs">
+      <footer className="mt-3 border-t border-dashed border-black pt-2 text-center text-xs leading-snug">
         <p>Thank you for shopping with us!</p>
+        <p className="mt-1.5 font-medium" dir="rtl" lang="ar">
+          {STORE_RECEIPT_FOOTER_ARABIC}
+        </p>
       </footer>
     </article>
   )

@@ -1,11 +1,20 @@
 export const STORE_NAME = 'BAPPI STORES - KANO'
 
+export const STORE_LOGO_SRC = '/BAPP11.png'
+
+/** BAPS1.png already includes name, addresses, and phones — hide those on receipts. */
+export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
+
 export const STORE_ADDRESSES = [
-  'No. 80 Hauwa Marsha behind Malam Kato',
-  'No. 04 Nakowa Plaza behind Glo Office',
+  'No. 80 Hauwa Marshal behind Malam Kato',
+  'No. 04 Bayan Glo Office - Nakowa Plaza',
 ]
 
-export const STORE_PHONES = ['08148517949', '08084277233']
+export const STORE_PHONES = ['08084277233', '07065761433']
+
+export const STORE_RECEIPT_TITLE = 'SALES INVOICE'
+
+export const STORE_RECEIPT_FOOTER_ARABIC = 'بالتوفيق والسلامة'
 
 /** Default thermal roll — Xprinter XP-80T (80mm). */
 export const RECEIPT_PAPER_MM_DEFAULT = 80

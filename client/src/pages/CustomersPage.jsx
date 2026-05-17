@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
+import PasswordDeleteDialog from '../components/PasswordDeleteDialog'
 import api from '../api'
+import { deleteWithPassword } from '../utils/secureDelete'
 
 const emptyCustomer = { name: '', phone: '', address: '' }
 
@@ -27,6 +29,7 @@ export default function CustomersPage() {
   const [query, setQuery] = useState('')
   const [form, setForm] = useState(emptyCustomer)
   const [editing, setEditing] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const formRef = useRef(null)
 
   const load = useCallback(() => {
@@ -75,15 +78,17 @@ export default function CustomersPage() {
     setForm(emptyCustomer)
   }
 
-  const remove = async (id) => {
-    if (!window.confirm('Delete this customer?')) return
+  const confirmDeleteCustomer = async (password) => {
+    if (!deleteTarget) return
     try {
-      await api.delete(`/customers/${id}`)
+      await deleteWithPassword(`/customers/${deleteTarget._id}`, password)
       toast.success('Customer deleted')
-      if (editing?._id === id) cancelEdit()
+      if (editing?._id === deleteTarget._id) cancelEdit()
+      setDeleteTarget(null)
       load()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete customer')
+      throw err
     }
   }
 
@@ -170,7 +175,7 @@ export default function CustomersPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => remove(c._id)}
+                            onClick={() => setDeleteTarget(c)}
                             className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 sm:text-base"
                           >
                             Delete
@@ -271,6 +276,17 @@ export default function CustomersPage() {
           </form>
         </aside>
       </div>
+      <PasswordDeleteDialog
+        open={!!deleteTarget}
+        title="Delete customer"
+        message={
+          deleteTarget
+            ? `Remove ${deleteTarget.name}? Customers with outstanding debt cannot be deleted.`
+            : ''
+        }
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteCustomer}
+      />
     </PageShell>
   )
 }

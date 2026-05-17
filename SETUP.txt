@@ -58,8 +58,19 @@ All sales, products, customers, and debts are stored in:
 When you shut down or restart the PC and run START again,
 you will see yesterday's data — nothing is lost.
 
-To back up your records: copy the whole  data\mongodb  folder
-to a USB drive or another computer.
+To back up your records:
+  Double-click  BACKUP.bat  (saves to Backups\ folder)
+  Or copy  data\mongodb  and  server\uploads  to USB yourself.
+
+
+SOFTWARE UPDATE (new version from your supplier)
+------------------------------------------------
+Read  UPGRADE.txt  in this folder.
+
+Summary:
+  - Use  UPDATE.bat  (keeps your sales)
+  - Do NOT use  SETUP.bat  again on a PC that already has data
+  - Never delete  data\mongodb  or  server\uploads
 
 
 TROUBLESHOOTING

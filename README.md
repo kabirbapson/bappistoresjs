@@ -15,13 +15,27 @@ Inventory and sales management for **Bappi Stores** in Kano, Nigeria. Track prod
 4. **Every day:** double-click **`START.bat`** or **`START.command`**.  
 5. Browser: **http://bappistores:5001** (run `CONFIGURE-HOSTNAME.bat` as Admin once on Windows) — login **`admin@bappi.com`** / **`admin123`**.
 
-Do **not** zip `node_modules` when sending the project; setup installs those automatically.
+Do **not** zip `node_modules` or `data/` when sending the project; setup installs those automatically.
 
 | File | When |
 |------|------|
-| `SETUP.bat` / `SETUP.command` | First time only (install + sample data) |
+| `SETUP.bat` / `SETUP.command` | **First time only** on a new PC |
+| `UPDATE.bat` / `UPDATE.command` | **Software update** — keeps existing sales |
+| `BACKUP.bat` / `BACKUP.command` | Copy database + photos to `Backups/` |
 | `START.bat` / `START.command` | Each time they use the shop |
-| `SETUP.txt` | Plain-English instructions to print or share |
+| `SETUP.txt` / `UPGRADE.txt` | Plain-English instructions |
+
+### Build a zip to send to shop computers
+
+From the project folder (developers):
+
+```bash
+npm run build:share
+```
+
+This creates **`BappiStores-Share/`** with a production UI build inside. Zip that folder and send it. On each PC they run **SETUP.bat** once, then **START.bat** daily.
+
+**Records persist** in `data/mongodb` (and product photos in `server/uploads`). When you ship an update, tell users to read **`UPGRADE.txt`**: run **UPDATE.bat**, not SETUP.bat, and never delete the `data` folder.
 
 Developers can still run `npm run install:app` (same as the SETUP launchers).
 
@@ -95,6 +109,9 @@ Change **`PORT`** in `server/.env` (e.g. `5001`) and match **`DEV_PROXY_TARGET`*
 | `npm run dev:server` | API only |
 | `npm run build` | Production build (client) |
 | `npm run seed` | Create admin user and sample data |
+| `npm run build:share` | Folder ready to zip for other PCs |
+| `npm run update` | Refresh packages + build (keeps `data/`) |
+| `npm run backup` | Copy `data/mongodb` + uploads to `Backups/` |
 
 ## Features
 

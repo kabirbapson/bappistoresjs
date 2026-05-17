@@ -1,3 +1,4 @@
+import NumericInput from './NumericInput'
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants'
 import { formatNaira } from '../utils/format'
 
@@ -115,13 +116,11 @@ export default function SalePaymentSection({
               </option>
             ))}
           </select>
-          <input
-            type="number"
-            min="0"
+          <NumericInput
             placeholder="Amount ₦"
             className={`min-w-0 flex-1 rounded-lg border bg-white font-semibold tabular-nums ${compact ? 'p-2.5 text-lg' : 'p-3 text-xl'}`}
-            value={row.amount}
-            onChange={(e) => updateRow(index, 'amount', e.target.value)}
+            value={row.amount === '' || row.amount == null ? '' : Number(row.amount)}
+            onChange={(v) => updateRow(index, 'amount', v === '' ? '' : String(v))}
           />
           {payments.length > 1 && (
             <button
