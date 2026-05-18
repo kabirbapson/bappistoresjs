@@ -2,24 +2,27 @@ import bcrypt from 'bcryptjs'
 import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
-import { Customer, Product, Sale, User } from './models.js'
+import { createSaleDocument } from './invoice.js'
+import { Customer, Product, Sale, StockLog, User } from './models.js'
 import { shopHasBeenUsed } from './shopDataMarker.js'
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const setupCompleteFlag = join(projectRoot, '.setup-complete')
 
-const SAMPLE_PRODUCTS = [
-  { name: 'Coca-Cola 50cl Crate', category: 'Beverages', quantity: 15, costPrice: 4200, sellingPrice: 5000 },
-  { name: 'Fanta Orange 50cl Crate', category: 'Beverages', quantity: 12, costPrice: 4000, sellingPrice: 4800 },
-  { name: 'Maltina Malt Drink Crate', category: 'Beverages', quantity: 10, costPrice: 4500, sellingPrice: 5200 },
-  { name: 'Eva Water 75cl Pack', category: 'Beverages', quantity: 30, costPrice: 1200, sellingPrice: 1500 },
-]
+/** One generic row each — white-label shops replace these in the app. */
+const STARTER_PRODUCT = {
+  name: 'Sample product',
+  category: 'General',
+  quantity: 10,
+  costPrice: 100,
+  sellingPrice: 150,
+}
 
-const SAMPLE_CUSTOMERS = [
-  { name: 'Ahmadu Bello', phone: '08031234567', address: 'Sabon Gari, Kano' },
-  { name: 'Fatima Provision Store', phone: '08099887766', address: 'Fagge, Kano' },
-  { name: 'Yusuf Trading', phone: '07012345678', address: 'Nassarawa, Kano' },
-]
+const STARTER_CUSTOMER = {
+  name: 'Sample customer',
+  phone: '08000000000',
+  address: 'Your shop address',
+}
 
 /** Create or update admin from env (used by `npm run seed` and empty DB bootstrap). */
 export async function upsertAdminFromEnv() {
@@ -33,20 +36,68 @@ export async function upsertAdminFromEnv() {
   )
 }
 
+async function ensureStarterInvoice(product, customer) {
+  const qty = 1
+  const unitPrice = product.sellingPrice
+  const totalAmount = unitPrice * qty
+  const totalCost = product.costPrice * qty
+
+  product.quantity = Math.max(0, product.quantity - qty)
+  await product.save()
+  await StockLog.create({
+    productId: product._id,
+    change: -qty,
+    type: 'sale',
+  })
+
+  await createSaleDocument({
+    products: [
+      {
+        productId: product._id,
+        productName: product.name,
+        quantity: qty,
+        costPrice: product.costPrice,
+        sellingPrice: unitPrice,
+      },
+    ],
+    totalAmount,
+    totalCost,
+    profit: totalAmount - totalCost,
+    type: 'paid',
+    amountPaid: totalAmount,
+    creditBalance: 0,
+    payments: [{ method: 'cash', amount: totalAmount }],
+    customerId: customer._id,
+    customerName: customer.name,
+    note: 'Example invoice — delete after you add your own sales',
+  })
+}
+
+/** Fresh shop: 1 sample product, 1 customer, 1 paid invoice (only when collections are empty). */
 export async function ensureSampleDataIfEmpty() {
-  if ((await Product.countDocuments()) === 0) {
-    await Product.insertMany(SAMPLE_PRODUCTS)
-    console.log('Bootstrap: sample products added')
+  let product = await Product.findOne()
+  if (!product) {
+    const created = await Product.create(STARTER_PRODUCT)
+    product = created
+    console.log('Bootstrap: sample product added (replace in Products)')
   }
-  if ((await Customer.countDocuments()) === 0) {
-    await Customer.insertMany(SAMPLE_CUSTOMERS)
-    console.log('Bootstrap: sample customers added')
+
+  let customer = await Customer.findOne()
+  if (!customer) {
+    const created = await Customer.create(STARTER_CUSTOMER)
+    customer = created
+    console.log('Bootstrap: sample customer added (replace in Customers)')
+  }
+
+  if ((await Sale.countDocuments()) === 0 && product && customer) {
+    await ensureStarterInvoice(product, customer)
+    console.log('Bootstrap: sample invoice added (see Invoices — delete when ready)')
   }
 }
 
 /**
  * On server start: ensure admin login only.
- * Sample products/customers are added only during SETUP (seed.js), never on every START.
+ * Starter samples run during SETUP (seed.js) or first start on an empty shop DB.
  */
 export async function bootstrapIfEmpty() {
   const userCount = await User.countDocuments()

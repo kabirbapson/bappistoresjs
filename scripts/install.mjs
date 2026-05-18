@@ -150,7 +150,7 @@ function main() {
   step(dbStep, TOTAL_STEPS, alreadyInstalled ? 'Finish (keep existing data)' : 'Database + admin user')
 
   if (alreadyInstalled) {
-    progress('Existing shop data found — skipping sample products.')
+    progress('Existing shop data found — keeping your products, customers, and sales.')
     progress('For a software update, use UPDATE.bat instead of SETUP.')
   } else {
     if (offline) {
@@ -162,9 +162,9 @@ function main() {
     applyBundledMongoEnv()
     runNodeScript(join(root, 'server', 'src', 'prefetch-db.js'), [], join(root, 'server'))
     stepOk('Database engine ready')
-    progress('Creating admin login and sample products…')
+    progress('Creating admin login and starter examples (1 product, 1 customer, 1 invoice)…')
     runNodeScript(join(root, 'server', 'src', 'seed.js'), [], join(root, 'server'))
-    stepOk('Admin user and sample data created')
+    stepOk('Admin user and starter examples created')
   }
 
   writeFileSync(join(root, '.setup-complete'), new Date().toISOString())

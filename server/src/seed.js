@@ -9,6 +9,6 @@ await upsertAdminFromEnv()
 await ensureSampleDataIfEmpty()
 markShopHasRealData()
 
-console.log('Seed complete — Bappi Stores Kano')
+console.log('Seed complete — starter data: 1 product, 1 customer, 1 sample invoice')
 await closeDB()
 process.exit(0)
