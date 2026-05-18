@@ -12,7 +12,10 @@ client/node_modules
 server/node_modules
 data/mongodb
 server/uploads
+data/mongodb-bin
 BappiStores-Share
+BappiStores-Share-*
+bundled/
 Backups
 setup-log.txt
 update-log.txt

@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { stringify } from "csv-stringify/sync";
 import { auth, debtStatus } from "./middleware.js";
-import { formatInvoice, nextInvoiceNumber } from "./invoice.js";
+import { createSaleDocument, formatInvoice } from "./invoice.js";
 import { buildDateRange, buildFinancialReport } from "./reports.js";
 import {
   debtFieldsFromSale,
@@ -12,6 +12,8 @@ import {
   normalizeSaleRecord,
 } from "./salePayments.js";
 import { verifyDeletePassword } from "./deleteAuth.js";
+import { applySaleStockChange } from "./saleStock.js";
+import { markShopHasRealData } from "./shopDataMarker.js";
 import { productImageUpload } from "./productUpload.js";
 import { Customer, Debt, Payment, Product, Sale, StockLog, User } from "./models.js";
 
@@ -51,7 +53,11 @@ router.post("/products/image", (req, res, next) => {
     res.status(201).json({ imageUrl: `/uploads/products/${req.file.filename}` });
   });
 });
-router.post("/products", async (req, res) => res.status(201).json(await Product.create(req.body)));
+router.post("/products", async (req, res) => {
+  const doc = await Product.create(req.body);
+  markShopHasRealData();
+  res.status(201).json(doc);
+});
 router.put("/products/:id", async (req, res) => res.json(await Product.findByIdAndUpdate(req.params.id, req.body, { new: true })));
 router.delete("/products/:id", async (req, res) => {
   await Product.findByIdAndDelete(req.params.id);
@@ -80,7 +86,11 @@ router.get("/customers", async (req, res) => {
   const items = await Customer.find(filter).sort({ createdAt: -1 });
   res.json({ items });
 });
-router.post("/customers", async (req, res) => res.status(201).json(await Customer.create(req.body)));
+router.post("/customers", async (req, res) => {
+  const doc = await Customer.create(req.body);
+  markShopHasRealData();
+  res.status(201).json(doc);
+});
 router.put("/customers/:id", async (req, res) => {
   const doc = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!doc) return res.status(404).json({ message: "Customer not found" });
@@ -125,25 +135,14 @@ async function resolveCustomer({ customerId, customerName }) {
   return { customer, customerName: name, customerId: customer?._id };
 }
 
-router.post("/sales", async (req, res) => {
-  const { products, customerId, customerName, note, payments } = req.body;
-
-  const resolved = await resolveCustomer({ customerId, customerName });
-  if (resolved.error) return res.status(400).json({ message: resolved.error });
-
+async function buildSaleProductsFromInput(products) {
   let totalAmount = 0;
   let totalCost = 0;
   const saleProducts = [];
 
   for (const item of products) {
     const product = await Product.findById(item.productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    if (product.quantity < item.quantity) {
-      return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
-    }
-    product.quantity -= Number(item.quantity);
-    await product.save();
-    await StockLog.create({ productId: product._id, change: -Number(item.quantity), type: "sale" });
+    if (!product) return { error: "Product not found" };
 
     const listPrice = Number(product.sellingPrice) || 0;
     const unitPrice =
@@ -151,59 +150,151 @@ router.post("/sales", async (req, res) => {
         ? Number(item.unitPrice)
         : listPrice;
     if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-      return res.status(400).json({ message: `Invalid sale price for ${product.name}` });
+      return { error: `Invalid sale price for ${product.name}` };
     }
     if (unitPrice > listPrice) {
-      return res.status(400).json({
-        message: `Sale price cannot be above list price (${listPrice}) for ${product.name}`,
-      });
+      return {
+        error: `Sale price cannot be above list price (${listPrice}) for ${product.name}`,
+      };
     }
 
-    totalAmount += unitPrice * Number(item.quantity);
-    totalCost += product.costPrice * Number(item.quantity);
+    const qty = Number(item.quantity);
+    totalAmount += unitPrice * qty;
+    totalCost += product.costPrice * qty;
     saleProducts.push({
       productId: product._id,
       productName: product.name,
-      quantity: Number(item.quantity),
+      quantity: qty,
       costPrice: product.costPrice,
       sellingPrice: unitPrice,
     });
   }
 
-  const pay = normalizePaymentsInput(payments, totalAmount);
-  if (pay.error) return res.status(400).json({ message: pay.error });
+  return { saleProducts, totalAmount, totalCost };
+}
 
-  if (pay.creditBalance > 0 && !resolved.customerId) {
-    return res.status(400).json({
-      message: "Register the customer to record credit or partial payment",
+async function deductStockForNewSale(products) {
+  for (const item of products) {
+    const product = await Product.findById(item.productId);
+    if (!product) return { error: "Product not found" };
+    if (product.quantity < item.quantity) {
+      return { error: `Insufficient stock for ${product.name}` };
+    }
+    product.quantity -= Number(item.quantity);
+    await product.save();
+    await StockLog.create({
+      productId: product._id,
+      change: -Number(item.quantity),
+      type: "sale",
     });
   }
+  return { ok: true };
+}
 
-  const invoiceNumber = await nextInvoiceNumber();
-  const sale = await Sale.create({
-    invoiceNumber,
-    products: saleProducts,
-    totalAmount,
-    totalCost,
-    profit: totalAmount - totalCost,
-    type: pay.type,
-    amountPaid: pay.amountPaid,
-    creditBalance: pay.creditBalance,
-    payments: pay.payments,
-    customerId: resolved.customerId,
-    customerName: resolved.customerName,
-    note,
-  });
+async function syncDebtForSale(sale, pay, customerId) {
+  const debt = await Debt.findOne({ saleId: sale._id });
+  const credit = pay.creditBalance;
 
-  if (pay.creditBalance > 0) {
-    await Debt.create({
+  if (credit > 0 && !customerId) {
+    return { error: "Register the customer to record credit or partial payment" };
+  }
+
+  if (!debt) {
+    if (credit > 0) {
+      await Debt.create({
+        customerId,
+        saleId: sale._id,
+        ...debtFieldsFromSale(credit),
+      });
+    }
+    return {};
+  }
+
+  const paidOnDebt = debt.amountPaid || 0;
+
+  if (credit <= 0) {
+    if (paidOnDebt > 0) {
+      debt.totalAmount = paidOnDebt;
+      debt.balance = 0;
+      debt.status = "paid";
+      await debt.save();
+    } else {
+      await Payment.deleteMany({ debtId: debt._id });
+      await Debt.findByIdAndDelete(debt._id);
+    }
+    return {};
+  }
+
+  if (paidOnDebt > credit) {
+    return {
+      error: `Customer already paid ${paidOnDebt} on this invoice debt. New credit is ${credit}. Adjust on the Debts page first.`,
+    };
+  }
+
+  debt.customerId = customerId;
+  debt.totalAmount = credit;
+  debt.balance = credit - paidOnDebt;
+  debt.status = debtStatus(debt.balance, debt.totalAmount);
+  await debt.save();
+  return {};
+}
+
+router.post("/sales", async (req, res) => {
+  try {
+    const { products, customerId, customerName, note, payments } = req.body;
+
+    const resolved = await resolveCustomer({ customerId, customerName });
+    if (resolved.error) return res.status(400).json({ message: resolved.error });
+
+    const stock = await deductStockForNewSale(products);
+    if (stock.error) return res.status(400).json({ message: stock.error });
+
+    const built = await buildSaleProductsFromInput(products);
+    if (built.error) return res.status(400).json({ message: built.error });
+    const { saleProducts, totalAmount, totalCost } = built;
+
+    const pay = normalizePaymentsInput(payments, totalAmount);
+    if (pay.error) return res.status(400).json({ message: pay.error });
+
+    if (pay.creditBalance > 0 && !resolved.customerId) {
+      return res.status(400).json({
+        message: "Register the customer to record credit or partial payment",
+      });
+    }
+
+    const sale = await createSaleDocument({
+      products: saleProducts,
+      totalAmount,
+      totalCost,
+      profit: totalAmount - totalCost,
+      type: pay.type,
+      amountPaid: pay.amountPaid,
+      creditBalance: pay.creditBalance,
+      payments: pay.payments,
       customerId: resolved.customerId,
-      saleId: sale._id,
-      ...debtFieldsFromSale(pay.creditBalance),
+      customerName: resolved.customerName,
+      note,
     });
-  }
 
-  res.status(201).json(formatInvoice(sale, resolved.customer));
+    if (pay.creditBalance > 0) {
+      await Debt.create({
+        customerId: resolved.customerId,
+        saleId: sale._id,
+        ...debtFieldsFromSale(pay.creditBalance),
+      });
+    }
+
+    markShopHasRealData();
+    res.status(201).json(formatInvoice(sale, resolved.customer));
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        message: "Invoice number conflict. Please try recording the sale again.",
+      });
+    }
+    console.error("POST /sales failed:", err);
+    res.status(500).json({ message: err.message || "Failed to record sale" });
+  }
 });
 
 router.get("/sales", async (req, res) => {
@@ -221,6 +312,58 @@ router.get("/sales/:id", async (req, res) => {
   const sale = await Sale.findById(req.params.id).populate("customerId");
   if (!sale) return res.status(404).json({ message: "Sale not found" });
   res.json(formatInvoice(sale, sale.customerId));
+});
+
+router.put("/sales/:id", async (req, res) => {
+  const sale = await Sale.findById(req.params.id);
+  if (!sale) return res.status(404).json({ message: "Sale not found" });
+
+  const { products, customerId, customerName, note, payments } = req.body;
+
+  const resolved = await resolveCustomer({ customerId, customerName });
+  if (resolved.error) return res.status(400).json({ message: resolved.error });
+
+  const built = await buildSaleProductsFromInput(products);
+  if (built.error) return res.status(400).json({ message: built.error });
+  const { saleProducts, totalAmount, totalCost } = built;
+
+  const pay = normalizePaymentsInput(payments, totalAmount);
+  if (pay.error) return res.status(400).json({ message: pay.error });
+
+  if (pay.creditBalance > 0 && !resolved.customerId) {
+    return res.status(400).json({
+      message: "Register the customer to record credit or partial payment",
+    });
+  }
+
+  const existingDebt = await Debt.findOne({ saleId: sale._id });
+  if (existingDebt && pay.creditBalance > 0 && (existingDebt.amountPaid || 0) > pay.creditBalance) {
+    return res.status(400).json({
+      message: `Customer already paid ${existingDebt.amountPaid} on this invoice debt. New credit is ${pay.creditBalance}. Adjust on the Debts page first.`,
+    });
+  }
+
+  const stock = await applySaleStockChange(sale.products, products);
+  if (stock.error) return res.status(400).json({ message: stock.error });
+
+  sale.products = saleProducts;
+  sale.totalAmount = totalAmount;
+  sale.totalCost = totalCost;
+  sale.profit = totalAmount - totalCost;
+  sale.type = pay.type;
+  sale.amountPaid = pay.amountPaid;
+  sale.creditBalance = pay.creditBalance;
+  sale.payments = pay.payments;
+  sale.customerId = resolved.customerId;
+  sale.customerName = resolved.customerName;
+  if (note !== undefined) sale.note = note;
+  await sale.save();
+
+  const debtSync = await syncDebtForSale(sale, pay, resolved.customerId);
+  if (debtSync.error) return res.status(400).json({ message: debtSync.error });
+
+  const populated = await Sale.findById(sale._id).populate("customerId");
+  res.json(formatInvoice(populated, populated.customerId));
 });
 
 router.delete("/sales/:id", async (req, res) => {

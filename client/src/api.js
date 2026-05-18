@@ -1,12 +1,12 @@
 import axios from "axios";
 
-const appHost = import.meta.env.VITE_APP_HOST || "bappistores";
-const defaultPort = import.meta.env.VITE_API_PORT || "5001";
-
-const baseURL =
-  import.meta.env.DEV
-    ? "/api"
-    : import.meta.env.VITE_API_URL || `http://${appHost}:${defaultPort}/api`;
+/**
+ * Dev: Vite proxies /api → local server.
+ * Production (START.bat): Express serves UI + API on one port — use relative /api (works offline, no Wi‑Fi).
+ */
+const baseURL = import.meta.env.DEV
+  ? "/api"
+  : import.meta.env.VITE_API_URL || "/api";
 
 const api = axios.create({
   baseURL,

@@ -5,14 +5,12 @@ import ProductPickerPanel from '../components/ProductPickerPanel'
 import SaleCartRow from '../components/SaleCartRow'
 import PageShell from '../components/PageShell'
 import SalePaymentSection from '../components/SalePaymentSection'
+import CustomerPicker, { WALK_IN } from '../components/CustomerPicker'
 import api from '../api'
 import { formatNaira } from '../utils/format'
 
-const WALK_IN = '__walkin__'
-
 export default function SalesPage() {
   const [products, setProducts] = useState([])
-  const [customers, setCustomers] = useState([])
   const [lastInvoice, setLastInvoice] = useState(null)
   const [productSearch, setProductSearch] = useState('')
   const [cart, setCart] = useState([])
@@ -24,12 +22,8 @@ export default function SalesPage() {
   const [payments, setPayments] = useState([{ method: 'cash', amount: '' }])
 
   const load = async () => {
-    const [p, c] = await Promise.all([
-      api.get('/products?limit=200'),
-      api.get('/customers'),
-    ])
+    const p = await api.get('/products?limit=200')
     setProducts(p.data.items)
-    setCustomers(c.data.items)
   }
 
   useEffect(() => {
@@ -52,12 +46,6 @@ export default function SalesPage() {
     }, 0)
   }, [cart, products])
 
-  const customerLabel = useMemo(() => {
-    if (form.customerPick === WALK_IN) return form.walkInName.trim() || null
-    const c = customers.find((x) => x._id === form.customerPick)
-    return c?.name || null
-  }, [form.customerPick, form.walkInName, customers])
-
   const paidNow = useMemo(
     () => payments.reduce((s, p) => s + (Number(p.amount) || 0), 0),
     [payments],
@@ -66,7 +54,7 @@ export default function SalesPage() {
   const creditBalance = Math.max(0, cartTotal - paidNow)
 
   const needsRegisteredCustomer =
-    creditBalance > 0 && form.customerPick === WALK_IN
+    creditBalance > 0 && (form.customerPick === WALK_IN || !form.customerPick)
 
   const addProduct = (productId) => {
     const p = products.find((x) => x._id === productId)
@@ -142,8 +130,12 @@ export default function SalesPage() {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!customerLabel) {
-      toast.error('Enter customer name or select a customer')
+    if (form.customerPick === WALK_IN && !form.walkInName.trim()) {
+      toast.error('Enter walk-in customer name')
+      return
+    }
+    if (form.customerPick !== WALK_IN && !form.customerPick) {
+      toast.error('Search and select a registered customer')
       return
     }
     if (cart.length === 0) {
@@ -224,34 +216,10 @@ export default function SalesPage() {
         >
           <div className="shrink-0 space-y-2 border-b border-slate-100 p-3">
             <div className="grid gap-2 sm:grid-cols-2">
-              <label className="block text-sm sm:col-span-2">
-                <span className="mb-1 block font-medium text-slate-600">Customer</span>
-                <select
-                  className="w-full rounded-lg border p-2.5 text-base"
-                  value={form.customerPick}
-                  onChange={(e) => setForm({ ...form, customerPick: e.target.value })}
-                >
-                  <option value={WALK_IN}>Walk-in</option>
-                  {customers.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                      {c.phone ? ` · ${c.phone}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {form.customerPick === WALK_IN && (
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium text-slate-600">Name *</span>
-                  <input
-                    className="w-full rounded-lg border p-2.5 text-base"
-                    value={form.walkInName}
-                    onChange={(e) => setForm({ ...form, walkInName: e.target.value })}
-                    placeholder="Customer name"
-                    required
-                  />
-                </label>
-              )}
+              <CustomerPicker
+                value={form}
+                onChange={(next) => setForm({ ...form, ...next })}
+              />
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-slate-600">Note</span>
                 <input
@@ -302,7 +270,11 @@ export default function SalesPage() {
               type="submit"
               className="w-full rounded-lg bg-slate-900 py-3 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               disabled={
-                cart.length === 0 || !customerLabel || needsRegisteredCustomer
+                cart.length === 0 ||
+                (form.customerPick === WALK_IN
+                  ? !form.walkInName.trim()
+                  : !form.customerPick) ||
+                needsRegisteredCustomer
               }
             >
               Record sale &amp; print ({cart.length})

@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import InvoiceReceipt from '../components/InvoiceReceipt'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
+import EditSaleDialog from '../components/EditSaleDialog'
 import PasswordDeleteDialog from '../components/PasswordDeleteDialog'
 import api from '../api'
 import { formatDateTable, formatNaira } from '../utils/format'
@@ -22,6 +23,7 @@ export default function InvoicesPage() {
 
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
 
 
 
@@ -113,7 +115,7 @@ export default function InvoicesPage() {
 
           title="Invoices"
 
-          subtitle="Receipt invoices — view and print (same as Make Sales)"
+          subtitle="View, edit, or print invoices (same layout as Make Sales)"
 
         />
 
@@ -165,11 +167,11 @@ export default function InvoicesPage() {
 
                   <col className="w-[32%]" />
 
-                  <col className="w-[24%]" />
+                  <col className="w-[20%]" />
 
                   <col className="w-[14%]" />
 
-                  <col className="w-[16%]" />
+                  <col className="w-[22%]" />
 
                 </colgroup>
 
@@ -279,6 +281,13 @@ export default function InvoicesPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={() => setEditTarget(s)}
+                              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => setDeleteTarget(s)}
                               className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 sm:text-sm"
                             >
@@ -326,6 +335,19 @@ export default function InvoicesPage() {
           invoice={preview}
           title="Invoice preview"
           onClose={() => setPreview(null)}
+        />
+      )}
+
+      {editTarget && (
+        <EditSaleDialog
+          saleId={editTarget._id}
+          invoiceNumber={editTarget.invoiceNumber}
+          onClose={() => setEditTarget(null)}
+          onSaved={(updated) => {
+            setEditTarget(null)
+            setPreview(updated)
+            load()
+          }}
         />
       )}
 

@@ -1,14 +1,35 @@
 /**
- * Creates BappiStores-Share/ — zip this folder and send to other computers.
- * Run: npm run build:share
+ * Creates BappiStores-Share/ — offline-ready zip for shop PCs (no internet on SETUP).
+ * Run on a Windows dev PC with internet: npm run build:share
  */
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'fs'
+import { randomBytes } from 'crypto'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { banner, progress, step, stepOk } from './progress.mjs'
 import { runNpm } from './spawn-utils.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const dest = join(root, 'BappiStores-Share')
+let dest = join(root, 'BappiStores-Share')
+
+function prepareDestFolder() {
+  if (!existsSync(dest)) {
+    mkdirSync(dest, { recursive: true })
+    return
+  }
+  try {
+    rmSync(dest, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 })
+    mkdirSync(dest, { recursive: true })
+  } catch (err) {
+    if (err.code === 'EBUSY' || err.code === 'EPERM') {
+      dest = join(root, `BappiStores-Share-${Date.now()}`)
+      console.warn(`\n  Folder locked — using ${dest} instead.\n`)
+      mkdirSync(dest, { recursive: true })
+      return
+    }
+    throw err
+  }
+}
 
 const COPY_DIRS = ['client', 'server', 'scripts']
 
@@ -23,6 +44,10 @@ const COPY_FILES = [
   'UPDATE.bat',
   'BACKUP.bat',
   'CONFIGURE-HOSTNAME.bat',
+  'REPAIR-DATABASE.bat',
+  'FIX-INVOICES.bat',
+  'RESTORE-BACKUP.bat',
+  'scripts/repair-database.bat',
   'SETUP.command',
   'START.command',
   'UPDATE.command',
@@ -36,6 +61,7 @@ const SKIP_DIR_NAMES = new Set([
   '.vscode',
   'BappiStores-Share',
   'Backups',
+  'dist',
 ])
 
 function shouldSkipFile(name) {
@@ -55,22 +81,55 @@ function copyDir(src, dst) {
   }
 }
 
-console.log('Building share package...\n')
-
-console.log('Step 1 — Build shop UI (client/dist)…')
-try {
-  runNpm(['run', 'build'], join(root, 'client'))
-} catch (err) {
-  console.error('\nBuild failed:', err.message)
-  process.exit(1)
+function copyNodeModules(label, relPath) {
+  const src = relPath ? join(root, relPath, 'node_modules') : join(root, 'node_modules')
+  if (!existsSync(src)) {
+    throw new Error(`Missing ${label} node_modules — run npm install first`)
+  }
+  const dst = relPath ? join(dest, relPath, 'node_modules') : join(dest, 'node_modules')
+  progress(`Copying ${label} node_modules (large, please wait)…`)
+  cpSync(src, dst, { recursive: true })
 }
 
-console.log('\nStep 2 — Copy files to BappiStores-Share/…\n')
-
-if (existsSync(dest)) {
-  rmSync(dest, { recursive: true, force: true })
+function shopServerEnv() {
+  let tpl = readFileSync(join(root, 'server/.env.example'), 'utf8')
+  tpl = tpl.replace('JWT_SECRET=change-this-secret', `JWT_SECRET=${randomBytes(24).toString('hex')}`)
+  if (!/MONGOMS_STARTUP_TIMEOUT=/m.test(tpl)) {
+    tpl += '\nMONGOMS_STARTUP_TIMEOUT=300000\n'
+  }
+  const mongod = join(root, 'bundled', 'mongod.exe').replace(/\\/g, '/')
+  if (existsSync(join(root, 'bundled', 'mongod.exe')) && !/MONGODB_SYSTEM_BINARY=/m.test(tpl)) {
+    tpl += `MONGODB_SYSTEM_BINARY=${mongod}\n`
+  }
+  return tpl
 }
-mkdirSync(dest, { recursive: true })
+
+const TOTAL = 6
+
+banner('Building BappiStores-Share (offline package)')
+
+step(1, TOTAL, 'Install all packages (build PC only — needs internet)')
+progress('npm install in project root…')
+runNpm(['install'], root)
+progress('npm install in client/…')
+runNpm(['install'], join(root, 'client'))
+progress('npm install in server/…')
+runNpm(['install'], join(root, 'server'))
+stepOk('All npm packages installed')
+
+step(2, TOTAL, 'Bundle MongoDB + Node.js for shop PCs')
+await import(pathToFileURL(join(root, 'scripts', 'download-bundled-mongodb.mjs')).href)
+await import(pathToFileURL(join(root, 'scripts', 'download-bundled-node.mjs')).href)
+stepOk('bundled/mongodb and bundled/nodejs ready')
+
+step(3, TOTAL, 'Build shop UI (production)')
+progress('Running vite build in client/…')
+runNpm(['run', 'build'], join(root, 'client'))
+stepOk('client/dist ready')
+
+step(4, TOTAL, 'Copy app files')
+progress('Preparing share folder…')
+prepareDestFolder()
 
 for (const file of COPY_FILES) {
   const src = join(root, file)
@@ -88,19 +147,58 @@ for (const dir of COPY_DIRS) {
   }
 }
 
+const clientDist = join(root, 'client', 'dist')
+if (existsSync(clientDist)) {
+  cpSync(clientDist, join(dest, 'client', 'dist'), { recursive: true })
+  console.log('  + client/dist/')
+}
+
+step(5, TOTAL, 'Copy offline bundles (node_modules + MongoDB + Node)')
+copyNodeModules('root', '')
+copyNodeModules('client', 'client')
+copyNodeModules('server', 'server')
+
+if (existsSync(join(root, 'bundled'))) {
+  cpSync(join(root, 'bundled'), join(dest, 'bundled'), { recursive: true })
+  console.log('  + bundled/')
+}
+
+writeFileSync(
+  join(dest, 'bundled', 'OFFLINE.txt'),
+  `Bappi Stores offline package
+Built: ${new Date().toISOString()}
+Shop PCs do not need internet for SETUP.bat.
+`,
+)
+
+step(6, TOTAL, 'Shop config files')
+writeFileSync(join(dest, 'server', '.env'), shopServerEnv())
+writeFileSync(join(dest, 'client', '.env'), readFileSync(join(root, 'client/.env.example'), 'utf8'))
+mkdirSync(join(dest, 'data'), { recursive: true })
+mkdirSync(join(dest, 'server', 'uploads', 'products'), { recursive: true })
+console.log('  + server/.env, client/.env, data/, uploads/')
+
 writeFileSync(
   join(dest, 'READ-ME-FIRST.txt'),
   `BAPPI STORES — READ THIS FIRST
 ==============================
 
+OFFLINE PACKAGE (this zip)
+--------------------------
+- No internet needed on the shop PC for setup.
+- Node.js and MongoDB are included in the  bundled/  folder.
+- All npm packages are included (node_modules).
+
 NEW COMPUTER (first time)
 -------------------------
-1. Install Node.js LTS from https://nodejs.org
-2. Double-click SETUP.bat (Windows) or SETUP.command (Mac)
+1. Unzip the whole folder (e.g. C:\\BappiStores)
+2. Double-click SETUP.bat — wait until it says finished (5–15 min first time)
 3. Once: CONFIGURE-HOSTNAME.bat as Administrator (Windows)
-4. Every day: START.bat / START.command
+4. Every day: START.bat
 5. Browser: http://bappistores:5001
    Login: admin@bappi.com / admin123
+
+You do NOT need to install Node.js from nodejs.org for this offline zip.
 
 ALREADY USING BAPPI STORES? (software update)
 ---------------------------------------------
@@ -111,13 +209,18 @@ Run BACKUP.bat before updating (recommended).
 Do NOT delete:
   data/mongodb     — all sales, products, customers, debts
   server/uploads   — product photos you uploaded
+  bundled/         — required for database and Node.js
 
-Setup failed? Open setup-log.txt (Windows) and send to IT.
+Database error? Run REPAIR-DATABASE.bat then SETUP.bat again.
+Setup failed? Open setup-log.txt and send to IT.
 
+Zip size is large (~1 GB) because everything is included.
 More help: SETUP.txt and UPGRADE.txt
 `,
 )
 
-console.log(`\nDone → ${dest}`)
-console.log('Zip the BappiStores-Share folder and send it to shop computers.')
-console.log('Do not include node_modules or data/ in the zip — setup creates those.\n')
+banner('OFFLINE SHARE PACKAGE READY')
+progress(`Folder: ${dest}`)
+progress('Zip the entire folder and copy to shop PCs (USB or network).')
+progress('On each PC: SETUP.bat once, then START.bat daily.')
+progress('Shop PCs do not need internet for setup.\n')

@@ -1,5 +1,12 @@
 import bcrypt from 'bcryptjs'
-import { Customer, Product, User } from './models.js'
+import { existsSync } from 'fs'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+import { Customer, Product, Sale, User } from './models.js'
+import { shopHasBeenUsed } from './shopDataMarker.js'
+
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '../..')
+const setupCompleteFlag = join(projectRoot, '.setup-complete')
 
 const SAMPLE_PRODUCTS = [
   { name: 'Coca-Cola 50cl Crate', category: 'Beverages', quantity: 15, costPrice: 4200, sellingPrice: 5000 },
@@ -38,8 +45,8 @@ export async function ensureSampleDataIfEmpty() {
 }
 
 /**
- * When no users exist (e.g. fresh in-memory Mongo), create admin + demo data.
- * In-memory DB does not share state with `npm run seed`, so this keeps login working in dev.
+ * On server start: ensure admin login only.
+ * Sample products/customers are added only during SETUP (seed.js), never on every START.
  */
 export async function bootstrapIfEmpty() {
   const userCount = await User.countDocuments()
@@ -48,5 +55,12 @@ export async function bootstrapIfEmpty() {
     const email = process.env.SEED_ADMIN_EMAIL || 'admin@bappi.com'
     console.log(`Bootstrap: created admin ${email} (password from SEED_ADMIN_PASSWORD or default admin123)`)
   }
-  await ensureSampleDataIfEmpty()
+
+  const saleCount = await Sale.countDocuments()
+  const hasRealShop =
+    shopHasBeenUsed() || existsSync(setupCompleteFlag) || saleCount > 0
+
+  if (!hasRealShop) {
+    await ensureSampleDataIfEmpty()
+  }
 }
