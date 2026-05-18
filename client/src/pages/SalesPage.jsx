@@ -15,7 +15,7 @@ export default function SalesPage() {
   const [productSearch, setProductSearch] = useState('')
   const [cart, setCart] = useState([])
   const [form, setForm] = useState({
-    customerPick: WALK_IN,
+    customerPick: '',
     walkInName: '',
     note: '',
   })
@@ -183,7 +183,7 @@ export default function SalesPage() {
       setCart([])
       setPayments([{ method: 'cash', amount: '' }])
       setForm({
-        customerPick: WALK_IN,
+        customerPick: '',
         walkInName: '',
         note: '',
       })
@@ -215,21 +215,12 @@ export default function SalesPage() {
           className="flex min-h-0 flex-col overflow-hidden rounded-xl bg-white shadow-sm"
         >
           <div className="shrink-0 space-y-2 border-b border-slate-100 p-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <CustomerPicker
-                value={form}
-                onChange={(next) => setForm({ ...form, ...next })}
-              />
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-600">Note</span>
-                <input
-                  className="w-full rounded-lg border p-2.5 text-base"
-                  value={form.note}
-                  onChange={(e) => setForm({ ...form, note: e.target.value })}
-                  placeholder="Optional"
-                />
-              </label>
-            </div>
+            <CustomerPicker
+              value={form}
+              onChange={(next) => setForm({ ...form, ...next })}
+              note={form.note}
+              onNoteChange={(note) => setForm({ ...form, note })}
+            />
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col p-3 pt-2">

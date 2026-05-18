@@ -25,7 +25,7 @@ export default function Layout({ children }) {
               <Link
                 key={path}
                 to={path}
-                className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`block rounded-lg px-3 py-2 text-xl font-bold transition-colors ${
                   location.pathname === path
                     ? 'bg-emerald-700 text-white'
                     : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -35,7 +35,8 @@ export default function Layout({ children }) {
               </Link>
             ))}
           </nav>
-          <p className="mt-4 text-xs text-slate-500">Inventory & sales</p>
+          <p className="mt-4 text-xs text-center text-slate-500">Inventory & sales</p>
+          <p className="mt-1 text-xs text-center text-slate-500">Designed & Developed by <b className="text-sm text-blue-500">Bappi</b></p>
           <button
             type="button"
             onClick={logout}
