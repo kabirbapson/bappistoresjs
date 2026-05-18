@@ -2,7 +2,9 @@
  * Run child processes without shell:true (avoids DEP0190 and spawn issues on Windows).
  */
 import { spawnSync } from 'child_process'
-import { getNodeExe, getNpmForSpawn } from './node-runtime.mjs'
+import { existsSync } from 'fs'
+import { dirname, join } from 'path'
+import { getNodeExe } from './node-runtime.mjs'
 
 export function runSpawn(command, args, { cwd, env = process.env } = {}) {
   const result = spawnSync(command, args, {
@@ -32,12 +34,25 @@ export function runSpawn(command, args, { cwd, env = process.env } = {}) {
   return result.status
 }
 
-export function runNpm(args, cwd) {
-  const npm = getNpmForSpawn()
-  if (process.platform === 'win32') {
-    return runSpawn('cmd.exe', ['/d', '/s', '/c', npm, ...args], { cwd })
+function resolveNpmCli() {
+  const nodeExe = getNodeExe()
+  const candidates = [join(dirname(nodeExe), 'node_modules', 'npm', 'bin', 'npm-cli.js')]
+  for (const path of candidates) {
+    if (existsSync(path)) return { nodeExe, npmCli: path }
   }
-  return runSpawn(npm, args, { cwd })
+  return null
+}
+
+export function runNpm(args, cwd) {
+  const viaNode = resolveNpmCli()
+  if (viaNode) {
+    return runSpawn(viaNode.nodeExe, [viaNode.npmCli, ...args], { cwd })
+  }
+
+  if (process.platform === 'win32') {
+    return runSpawn('npm.cmd', args, { cwd })
+  }
+  return runSpawn('npm', args, { cwd })
 }
 
 export function runNodeScript(scriptPath, args = [], cwd) {
