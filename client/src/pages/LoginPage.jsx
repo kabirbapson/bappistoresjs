@@ -1,14 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import StoreBranding from '../components/StoreBranding'
 import { useAuthStore } from '../store'
+import { useShopSettingsStore } from '../shopSettingsStore'
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login)
   const token = useAuthStore((s) => s.token)
   const loading = useAuthStore((s) => s.loading)
+  const loadSettings = useShopSettingsStore((s) => s.load)
   const [form, setForm] = useState({ email: 'admin@bappi.com', password: 'admin123' })
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
   if (token) return <Navigate to="/" replace />
 

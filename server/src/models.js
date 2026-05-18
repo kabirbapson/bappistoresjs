@@ -78,6 +78,20 @@ const stockLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const shopSettingsSchema = new mongoose.Schema(
+  {
+    singleton: { type: String, default: "shop", unique: true },
+    shopName: { type: String, default: "" },
+    addresses: { type: [String], default: [] },
+    phones: { type: [String], default: [] },
+    logoUrl: { type: String, default: "/logo.png" },
+    receiptTitle: { type: String, default: "SALES INVOICE" },
+    receiptFooterArabic: { type: String, default: "" },
+    logoIncludesReceiptHeader: { type: Boolean, default: false },
+  },
+  { timestamps: true },
+);
+
 export const User = mongoose.model("User", userSchema);
 export const Product = mongoose.model("Product", productSchema);
 export const Customer = mongoose.model("Customer", customerSchema);
@@ -85,3 +99,4 @@ export const Sale = mongoose.model("Sale", saleSchema);
 export const Debt = mongoose.model("Debt", debtSchema);
 export const Payment = mongoose.model("Payment", paymentSchema);
 export const StockLog = mongoose.model("StockLog", stockLogSchema);
+export const ShopSettings = mongoose.model("ShopSettings", shopSettingsSchema);

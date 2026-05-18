@@ -9,6 +9,7 @@ import ProductsPage from './pages/ProductsPage'
 import InvoicesPage from './pages/InvoicesPage'
 import ReportsPage from './pages/ReportsPage'
 import SalesPage from './pages/SalesPage'
+import SettingsPage from './pages/SettingsPage'
 
 function withLayout(Page) {
   return (
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/invoices" element={withLayout(InvoicesPage)} />
       <Route path="/debts" element={withLayout(DebtsPage)} />
       <Route path="/reports" element={withLayout(ReportsPage)} />
+      <Route path="/settings" element={withLayout(SettingsPage)} />
     </Routes>
   )
 }

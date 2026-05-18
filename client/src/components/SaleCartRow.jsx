@@ -6,6 +6,7 @@ import { formatNaira } from '../utils/format'
 export default function SaleCartRow({
   lines,
   products,
+  maxQtyForProduct,
   onUpdateQty,
   onUpdatePrice,
   onRemove,
@@ -38,7 +39,8 @@ export default function SaleCartRow({
           const unitPrice = line.unitPrice != null ? line.unitPrice : listPrice
           const lineTotal = unitPrice * line.quantity
           const hasDiscount = unitPrice < listPrice
-          const quickQty = QUICK_QUANTITIES.filter((q) => q <= product.quantity)
+          const maxQty = maxQtyForProduct?.(line.productId) ?? product.quantity
+          const quickQty = QUICK_QUANTITIES.filter((q) => q <= maxQty)
 
           return (
             <article
@@ -95,7 +97,7 @@ export default function SaleCartRow({
                 <button
                   type="button"
                   onClick={() => onUpdateQty(line.productId, line.quantity + 1)}
-                  disabled={line.quantity >= product.quantity}
+                  disabled={line.quantity >= maxQty}
                   className={`flex shrink-0 items-center justify-center rounded border bg-slate-50 font-bold disabled:opacity-40 ${btnSize}`}
                   aria-label="Increase"
                 >

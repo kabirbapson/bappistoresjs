@@ -53,9 +53,14 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
           : [{ method: 'cash', amount: String(sale.amountPaid || sale.totalAmount || '') }]
 
       setPayments(payRows)
+      const registeredId =
+        sale.customerId && typeof sale.customerId === 'object'
+          ? sale.customerId._id
+          : sale.customerId
+
       setForm({
-        customerPick: sale.customerId ? String(sale.customerId) : WALK_IN,
-        walkInName: sale.customerId ? '' : sale.customerName || '',
+        customerPick: registeredId ? String(registeredId) : WALK_IN,
+        walkInName: registeredId ? '' : sale.customerName || '',
         note: sale.note || '',
       })
     } catch (err) {
@@ -276,6 +281,7 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
                     compact
                     lines={cart}
                     products={products}
+                    maxQtyForProduct={maxQtyForProduct}
                     onUpdateQty={updateCartQty}
                     onUpdatePrice={updateCartPrice}
                     onRemove={removeFromCart}
@@ -308,6 +314,8 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
               search={productSearch}
               onSearchChange={setProductSearch}
               cartLines={cart}
+              alwaysShowProductIds={Object.keys(originalQty)}
+              availableQtyForProduct={maxQtyForProduct}
               onAddProduct={addProduct}
             />
           </form>

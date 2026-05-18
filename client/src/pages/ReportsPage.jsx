@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
 import api from '../api'
 import { paymentMethodLabel } from '../constants'
+import { displayShopName, useShopSettingsStore } from '../shopSettingsStore'
 import { formatDate, formatNaira } from '../utils/format'
 
 const PERIODS = [
@@ -29,6 +30,7 @@ function StatCard({ label, value, sub, tone = 'slate' }) {
 }
 
 export default function ReportsPage() {
+  const settings = useShopSettingsStore((s) => s.settings)
   const [period, setPeriod] = useState('today')
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -56,7 +58,7 @@ export default function ReportsPage() {
     setExporting(true)
     try {
       const lines = []
-      lines.push('Bappi Stores Kano — Financial Report')
+      lines.push(`${displayShopName(settings)} — Financial Report`)
       lines.push(`Period,${PERIODS.find((p) => p.value === period)?.label || period}`)
       lines.push(`From,${report.from}`)
       lines.push(`To,${report.to}`)

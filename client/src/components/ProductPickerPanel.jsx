@@ -5,13 +5,18 @@ export default function ProductPickerPanel({
   search,
   onSearchChange,
   cartLines = [],
+  alwaysShowProductIds = [],
+  availableQtyForProduct,
   onAddProduct,
   fillHeight = false,
 }) {
   const cartQty = (id) => cartLines.find((l) => l.productId === id)?.quantity ?? 0
+  const alwaysShow = new Set(alwaysShowProductIds.map(String))
+  const stockCap = (p) => availableQtyForProduct?.(p._id) ?? p.quantity
 
-  const inStock = products.filter((p) => p.quantity > 0)
-  const outOfStock = products.filter((p) => p.quantity <= 0)
+  const pickable = (p) => stockCap(p) > 0 || alwaysShow.has(String(p._id))
+  const inStock = products.filter(pickable)
+  const outOfStock = products.filter((p) => !pickable(p))
 
   return (
     <aside
@@ -42,7 +47,7 @@ export default function ProductPickerPanel({
             <div className="grid grid-cols-3 gap-1.5">
               {inStock.map((p) => {
                 const inCart = cartQty(p._id)
-                const remaining = p.quantity - inCart
+                const remaining = stockCap(p) - inCart
                 const inSale = inCart > 0
 
                 return (

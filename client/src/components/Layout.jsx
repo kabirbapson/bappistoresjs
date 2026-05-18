@@ -1,11 +1,18 @@
+import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { NAV_ITEMS } from '../constants'
 import { useAuthStore } from '../store'
+import { useShopSettingsStore } from '../shopSettingsStore'
 import StoreBranding from './StoreBranding'
 
 export default function Layout({ children }) {
   const logout = useAuthStore((s) => s.logout)
   const location = useLocation()
+  const loadSettings = useShopSettingsStore((s) => s.load)
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
   return (
     <div className="h-dvh overflow-hidden bg-slate-100">

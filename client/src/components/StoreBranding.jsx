@@ -1,14 +1,9 @@
-import {
-  STORE_ADDRESSES,
-  STORE_LOGO_INCLUDES_RECEIPT_HEADER,
-  STORE_NAME,
-  STORE_PHONES,
-  STORE_RECEIPT_TITLE,
-} from '../constants'
+import { useShopSettingsStore } from '../shopSettingsStore'
 import StoreLogo from './StoreLogo'
 
-/** Store name with addresses in small italics — use under logo across the app. */
+/** Shop branding from settings — logo, name, addresses, phones. */
 export default function StoreBranding({
+  settings: settingsOverride,
   showLogo = false,
   logoClassName = 'mx-auto h-auto w-full max-w-[240px] object-contain',
   nameClassName = 'font-bold tracking-wide text-slate-900',
@@ -18,8 +13,16 @@ export default function StoreBranding({
   receipt = false,
   align = 'center',
 }) {
+  const stored = useShopSettingsStore((s) => s.settings)
+  const settings = settingsOverride || stored
+  const configuredName = settings?.shopName?.trim()
+  const addresses = settings?.addresses || []
+  const phones = settings?.phones || []
+  const receiptTitle = settings?.receiptTitle || 'SALES INVOICE'
+  const logoIncludesReceiptHeader = Boolean(settings?.logoIncludesReceiptHeader)
+
   const alignClass = align === 'left' ? 'text-left' : 'text-center'
-  const compositeReceiptHeader = receipt && STORE_LOGO_INCLUDES_RECEIPT_HEADER && showLogo
+  const compositeReceiptHeader = receipt && logoIncludesReceiptHeader && showLogo
   const addressClass = receipt
     ? 'text-[10px] italic leading-tight text-black'
     : dark
@@ -31,25 +34,29 @@ export default function StoreBranding({
       ? 'text-xs text-slate-300'
       : 'text-sm font-medium text-slate-700'
 
+  const showTextBlock = !compositeReceiptHeader
+
   return (
     <div className={alignClass}>
-      {showLogo && <StoreLogo className={logoClassName} />}
-      {!compositeReceiptHeader && <p className={nameClassName}>{STORE_NAME}</p>}
-      {!compositeReceiptHeader && !compact && (
+      {showLogo && <StoreLogo settings={settings} className={logoClassName} />}
+      {showTextBlock && configuredName && (
+        <p className={nameClassName}>{configuredName}</p>
+      )}
+      {showTextBlock && !compact && addresses.length > 0 && (
         <div className={`mt-1.5 space-y-0.5 ${addressClass} ${receipt ? 'receipt-addresses' : ''}`}>
-          {STORE_ADDRESSES.map((line) => (
+          {addresses.map((line) => (
             <p key={line} className={receipt ? 'receipt-address-line' : undefined}>
               {line}
             </p>
           ))}
         </div>
       )}
-      {!compositeReceiptHeader && showPhones && !compact && (
-        <p className={`mt-2 ${phoneClass}`}>{STORE_PHONES.join(' · ')}</p>
+      {showTextBlock && showPhones && !compact && phones.length > 0 && (
+        <p className={`mt-2 ${phoneClass}`}>{phones.join(' · ')}</p>
       )}
-      {receipt && !compact && (
+      {receipt && !compact && receiptTitle && (
         <p className="mt-1.5 text-xs font-bold uppercase tracking-wide text-black">
-          {STORE_RECEIPT_TITLE}
+          {receiptTitle}
         </p>
       )}
     </div>

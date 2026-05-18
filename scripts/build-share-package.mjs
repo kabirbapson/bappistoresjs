@@ -176,6 +176,7 @@ writeFileSync(join(dest, 'server', '.env'), shopServerEnv())
 writeFileSync(join(dest, 'client', '.env'), readFileSync(join(root, 'client/.env.example'), 'utf8'))
 mkdirSync(join(dest, 'data'), { recursive: true })
 mkdirSync(join(dest, 'server', 'uploads', 'products'), { recursive: true })
+mkdirSync(join(dest, 'server', 'uploads', 'branding'), { recursive: true })
 console.log('  + server/.env, client/.env, data/, uploads/')
 
 writeFileSync(

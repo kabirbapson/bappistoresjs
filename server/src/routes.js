@@ -15,9 +15,15 @@ import { verifyDeletePassword } from "./deleteAuth.js";
 import { applySaleStockChange } from "./saleStock.js";
 import { markShopHasRealData } from "./shopDataMarker.js";
 import { productImageUpload } from "./productUpload.js";
+import { brandingImageUpload } from "./brandingUpload.js";
+import { getShopSettings, setShopLogoUrl, updateShopSettings } from "./shopSettings.js";
 import { Customer, Debt, Payment, Product, Sale, StockLog, User } from "./models.js";
 
 const router = express.Router();
+
+router.get("/settings", async (_req, res) => {
+  res.json(await getShopSettings());
+});
 
 router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
@@ -30,6 +36,27 @@ router.post("/auth/login", async (req, res) => {
 });
 
 router.use(auth);
+
+router.put("/settings", async (req, res) => {
+  res.json(await updateShopSettings(req.body));
+});
+
+router.post("/settings/logo", (req, res, next) => {
+  brandingImageUpload.single("image")(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message || "Upload failed" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+    try {
+      const logoUrl = `/uploads/branding/${req.file.filename}`;
+      res.json(await setShopLogoUrl(logoUrl));
+    } catch (e) {
+      res.status(500).json({ message: e.message || "Failed to save logo" });
+    }
+  });
+});
 
 router.get("/products", async (req, res) => {
   const page = Number(req.query.page || 1);
@@ -175,20 +202,40 @@ async function buildSaleProductsFromInput(products) {
 
 async function deductStockForNewSale(products) {
   for (const item of products) {
+    const qty = Number(item.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return { error: "Invalid product quantity" };
+    }
     const product = await Product.findById(item.productId);
     if (!product) return { error: "Product not found" };
-    if (product.quantity < item.quantity) {
+    if (product.quantity < qty) {
       return { error: `Insufficient stock for ${product.name}` };
     }
-    product.quantity -= Number(item.quantity);
+    product.quantity -= qty;
     await product.save();
     await StockLog.create({
       productId: product._id,
-      change: -Number(item.quantity),
+      change: -qty,
       type: "sale",
     });
   }
   return { ok: true };
+}
+
+async function restoreStockForNewSale(products) {
+  for (const item of products) {
+    const qty = Number(item.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+    const product = await Product.findById(item.productId);
+    if (!product) continue;
+    product.quantity += qty;
+    await product.save();
+    await StockLog.create({
+      productId: product._id,
+      change: qty,
+      type: "restock",
+    });
+  }
 }
 
 async function syncDebtForSale(sale, pay, customerId) {
@@ -246,9 +293,6 @@ router.post("/sales", async (req, res) => {
     const resolved = await resolveCustomer({ customerId, customerName });
     if (resolved.error) return res.status(400).json({ message: resolved.error });
 
-    const stock = await deductStockForNewSale(products);
-    if (stock.error) return res.status(400).json({ message: stock.error });
-
     const built = await buildSaleProductsFromInput(products);
     if (built.error) return res.status(400).json({ message: built.error });
     const { saleProducts, totalAmount, totalCost } = built;
@@ -262,19 +306,28 @@ router.post("/sales", async (req, res) => {
       });
     }
 
-    const sale = await createSaleDocument({
-      products: saleProducts,
-      totalAmount,
-      totalCost,
-      profit: totalAmount - totalCost,
-      type: pay.type,
-      amountPaid: pay.amountPaid,
-      creditBalance: pay.creditBalance,
-      payments: pay.payments,
-      customerId: resolved.customerId,
-      customerName: resolved.customerName,
-      note,
-    });
+    const stock = await deductStockForNewSale(products);
+    if (stock.error) return res.status(400).json({ message: stock.error });
+
+    let sale;
+    try {
+      sale = await createSaleDocument({
+        products: saleProducts,
+        totalAmount,
+        totalCost,
+        profit: totalAmount - totalCost,
+        type: pay.type,
+        amountPaid: pay.amountPaid,
+        creditBalance: pay.creditBalance,
+        payments: pay.payments,
+        customerId: resolved.customerId,
+        customerName: resolved.customerName,
+        note,
+      });
+    } catch (createErr) {
+      await restoreStockForNewSale(products);
+      throw createErr;
+    }
 
     if (pay.creditBalance > 0) {
       await Debt.create({
@@ -423,20 +476,27 @@ router.delete("/debts/:id", async (req, res) => {
 
 router.post("/payments", async (req, res) => {
   const { debtId, amount, method } = req.body;
-  const debt = await Debt.findById(debtId);
-  if (!debt) return res.status(404).json({ message: "Debt not found" });
-  debt.amountPaid += Number(amount);
-  debt.balance = Math.max(0, debt.totalAmount - debt.amountPaid);
-  debt.status = debtStatus(debt.balance, debt.totalAmount);
-  await debt.save();
+  const payAmount = Number(amount);
+  if (!Number.isFinite(payAmount) || payAmount <= 0) {
+    return res.status(400).json({ message: "Enter a valid payment amount" });
+  }
   const normalizedMethod = normalizePaymentMethod(method);
   if (!["cash", "pos"].includes(normalizedMethod)) {
     return res.status(400).json({ message: "Invalid payment method. Use cash or POS / transfer." });
   }
+  const debt = await Debt.findById(debtId);
+  if (!debt) return res.status(404).json({ message: "Debt not found" });
+  if (payAmount > debt.balance) {
+    return res.status(400).json({ message: `Payment cannot exceed balance of ${debt.balance}` });
+  }
+  debt.amountPaid += payAmount;
+  debt.balance = Math.max(0, debt.totalAmount - debt.amountPaid);
+  debt.status = debtStatus(debt.balance, debt.totalAmount);
+  await debt.save();
   const payment = await Payment.create({
     debtId,
     customerId: debt.customerId,
-    amount,
+    amount: payAmount,
     method: normalizedMethod,
   });
   res.status(201).json({ payment, debt });
@@ -446,7 +506,7 @@ router.get("/payments", async (req, res) => res.json({ items: await Payment.find
 router.get("/reports/dashboard", async (_req, res) => {
   const [totalProducts, lowStock, products, todaySales, debtTotals, paymentTotals] = await Promise.all([
     Product.countDocuments(),
-    Product.countDocuments({ quantity: { $lte: 5 } }),
+    Product.countDocuments({ quantity: { $lte: 50 } }),
     Product.find(),
     Sale.aggregate([{ $match: { date: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }, { $group: { _id: null, total: { $sum: "$totalAmount" } } }]),
     Debt.aggregate([{ $group: { _id: null, total: { $sum: "$balance" } } }]),

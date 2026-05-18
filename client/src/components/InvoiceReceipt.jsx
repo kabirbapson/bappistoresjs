@@ -1,10 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import StoreBranding from './StoreBranding'
-import {
-  paymentMethodLabel,
-  RECEIPT_PAPER_OPTIONS,
-  STORE_RECEIPT_FOOTER_ARABIC,
-} from '../constants'
+import { paymentMethodLabel, RECEIPT_PAPER_OPTIONS } from '../constants'
+import { useShopSettingsStore } from '../shopSettingsStore'
 import { formatDate, formatNaira } from '../utils/format'
 import { getReceiptPaperMm, printThermalReceipt, setReceiptPaperMm } from '../utils/print'
 
@@ -13,8 +11,15 @@ export default function InvoiceReceipt({
   onClose,
   showActions = true,
   title = 'Receipt preview',
+  autoPrint = false,
 }) {
   const [paperMm, setPaperMm] = useState(() => getReceiptPaperMm())
+
+  useEffect(() => {
+    if (!autoPrint || !invoice) return
+    const timer = window.setTimeout(() => printThermalReceipt(), 300)
+    return () => window.clearTimeout(timer)
+  }, [autoPrint, invoice])
 
   if (!invoice) return null
 
@@ -23,9 +28,26 @@ export default function InvoiceReceipt({
     setReceiptPaperMm(mm)
   }
 
-  return (
-    <div className={showActions ? 'fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center' : ''}>
-      <div className={`w-max max-w-[calc(100%-0.5rem)] ${showActions ? 'rounded-t-2xl bg-white shadow-xl sm:rounded-2xl' : ''}`}>
+  const printRoot = (
+    <div id="thermal-receipt-print" className="thermal-receipt-print" aria-hidden="true">
+      <ReceiptBody invoice={invoice} />
+    </div>
+  )
+
+  const modal = (
+    <div
+      className={
+        showActions
+          ? 'fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 sm:items-center'
+          : ''
+      }
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        className={`w-max max-w-[calc(100%-0.5rem)] ${showActions ? 'rounded-t-2xl bg-white shadow-xl sm:rounded-2xl' : ''}`}
+      >
         {showActions && (
           <div className="flex items-center justify-between border-b px-4 py-3">
             <h3 className="font-semibold text-slate-900">{title}</h3>
@@ -82,15 +104,20 @@ export default function InvoiceReceipt({
           headers/footers if a URL appears on the slip.
         </p>
       </div>
-
-      <div id="thermal-receipt-print" className="thermal-receipt-print" aria-hidden="true">
-        <ReceiptBody invoice={invoice} />
-      </div>
     </div>
+  )
+
+  return (
+    <>
+      {createPortal(modal, document.body)}
+      {createPortal(printRoot, document.body)}
+    </>
   )
 }
 
 function ReceiptBody({ invoice }) {
+  const settings = useShopSettingsStore((s) => s.settings)
+  const footerText = settings?.receiptFooterArabic?.trim()
   const hasCredit = (invoice.creditBalance || 0) > 0
 
   return (
@@ -114,24 +141,24 @@ function ReceiptBody({ invoice }) {
       </section>
 
       <table className="w-full border-collapse py-2 text-xs">
-          <thead>
-            <tr className="border-b border-black">
-              <th className="w-5 py-1 text-center font-semibold">#</th>
-              <th className="py-1 text-left font-semibold">Item</th>
-              <th className="w-8 py-1 text-center font-semibold">Qty</th>
-              <th className="w-14 py-1 text-right font-semibold">Amt</th>
+        <thead>
+          <tr className="border-b border-black">
+            <th className="w-5 py-1 text-center font-semibold">#</th>
+            <th className="py-1 text-left font-semibold">Item</th>
+            <th className="w-8 py-1 text-center font-semibold">Qty</th>
+            <th className="w-14 py-1 text-right font-semibold">Amt</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoice.items?.map((line, i) => (
+            <tr key={i} className="border-b border-dotted border-slate-400">
+              <td className="py-1 text-center tabular-nums text-slate-600">{i + 1}</td>
+              <td className="py-1 pr-1">{line.productName}</td>
+              <td className="py-1 text-center tabular-nums">{line.quantity}</td>
+              <td className="py-1 text-right tabular-nums">{formatNaira(line.lineTotal)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {invoice.items?.map((line, i) => (
-              <tr key={i} className="border-b border-dotted border-slate-400">
-                <td className="py-1 text-center tabular-nums text-slate-600">{i + 1}</td>
-                <td className="py-1 pr-1">{line.productName}</td>
-                <td className="py-1 text-center tabular-nums">{line.quantity}</td>
-                <td className="py-1 text-right tabular-nums">{formatNaira(line.lineTotal)}</td>
-              </tr>
-            ))}
-          </tbody>
+          ))}
+        </tbody>
       </table>
 
       <section className="border-t border-double border-black pt-2 text-sm">
@@ -161,15 +188,15 @@ function ReceiptBody({ invoice }) {
         )}
       </section>
 
-      {invoice.note && (
-        <p className="mt-2 text-center text-xs">Note: {invoice.note}</p>
-      )}
+      {invoice.note && <p className="mt-2 text-center text-xs">Note: {invoice.note}</p>}
 
       <footer className="mt-3 border-t border-dashed border-black pt-2 text-center text-xs leading-snug">
         <p>Thank you for shopping with us!</p>
-        <p className="mt-1.5 font-medium" dir="rtl" lang="ar">
-          {STORE_RECEIPT_FOOTER_ARABIC}
-        </p>
+        {footerText && (
+          <p className="mt-1.5 font-medium" dir="auto">
+            {footerText}
+          </p>
+        )}
       </footer>
     </article>
   )
@@ -192,4 +219,7 @@ function LeftField({ label, value, valueClassName = '' }) {
     </p>
   )
 }
+
+
+
 

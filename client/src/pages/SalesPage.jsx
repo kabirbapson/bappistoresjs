@@ -22,8 +22,12 @@ export default function SalesPage() {
   const [payments, setPayments] = useState([{ method: 'cash', amount: '' }])
 
   const load = async () => {
-    const p = await api.get('/products?limit=200')
-    setProducts(p.data.items)
+    try {
+      const p = await api.get('/products?limit=200')
+      setProducts(p.data.items)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not load products')
+    }
   }
 
   useEffect(() => {
@@ -284,7 +288,11 @@ export default function SalesPage() {
       </div>
 
       {lastInvoice && (
-        <InvoiceReceipt invoice={lastInvoice} onClose={() => setLastInvoice(null)} />
+        <InvoiceReceipt
+          invoice={lastInvoice}
+          autoPrint
+          onClose={() => setLastInvoice(null)}
+        />
       )}
     </PageShell>
   )

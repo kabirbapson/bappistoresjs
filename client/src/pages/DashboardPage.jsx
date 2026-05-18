@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
 import StoreLogo from '../components/StoreLogo'
 import api from '../api'
-import { STORE_NAME } from '../constants'
+import { displayShopName, useShopSettingsStore } from '../shopSettingsStore'
 import { DASHBOARD_LABELS, formatDashboardValue, formatNaira } from '../utils/format'
 
 const QUICK_LINKS = [
@@ -75,6 +75,7 @@ function StatCardSkeleton() {
 }
 
 export default function DashboardPage() {
+  const settings = useShopSettingsStore((s) => s.settings)
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -83,6 +84,19 @@ export default function DashboardPage() {
     api
       .get('/reports/dashboard')
       .then((res) => setStats(res.data))
+      .catch(() => {
+        setStats({
+          cards: {
+            dailySales: 0,
+            outstandingDebt: 0,
+            totalProducts: 0,
+            lowStockAlerts: 0,
+            totalStockValue: 0,
+            totalPaymentsReceived: 0,
+          },
+          dailySales: [],
+        })
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -106,7 +120,7 @@ export default function DashboardPage() {
                   <StoreLogo className="h-auto w-full max-w-[280px] object-contain" />
                 </div>
                 <p className="text-base font-bold leading-tight tracking-wide text-white sm:text-lg">
-                  {STORE_NAME}
+                  {displayShopName(settings)}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

@@ -18,16 +18,13 @@ const url = `https://nodejs.org/dist/v${NODE_VERSION}/${zipName}`
 if (process.platform !== 'win32') {
   progress('Skipping bundled Node download (build machine is not Windows).')
   progress('Shop zip for Windows should be built on a Windows PC, or install Node on each shop PC.')
-  process.exit(0)
-}
+} else {
 
 mkdirSync(join(root, 'bundled'), { recursive: true })
 
 if (existsSync(join(destDir, 'node.exe'))) {
   progress(`Bundled Node.js ${NODE_VERSION} already present`)
-  process.exit(0)
-}
-
+} else {
 progress(`Downloading Node.js ${NODE_VERSION} Windows x64 (~30MB)…`)
 
 const res = await fetch(url)
@@ -67,3 +64,5 @@ if (!existsSync(join(destDir, 'node.exe'))) {
 }
 
 progress(`Bundled Node.js ready in bundled/nodejs/ (${NODE_VERSION})`)
+}
+}
