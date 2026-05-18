@@ -1,32 +1,88 @@
 /**
- * One-time installer: config files, npm install (root + client + server), seed data.
+ * One-time installer: config files, npm install (or offline verify), seed data.
  * Run: node scripts/install.mjs   OR   double-click SETUP.bat / SETUP.command
  */
-import { copyFileSync, existsSync, readdirSync, writeFileSync } from 'fs'
+import { randomBytes } from 'crypto'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { appUrl } from './app-host.mjs'
+import { findBundledMongod } from './find-bundled-mongod.mjs'
+import { banner, fail, initProgressLog, progress, step, stepOk } from './progress.mjs'
+import { getNodeExe, isOfflineBundle } from './node-runtime.mjs'
 import { runNodeScript, runNpm } from './spawn-utils.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const isWin = process.platform === 'win32'
+const offline = isOfflineBundle()
+const TOTAL_STEPS = offline ? 3 : 5
 
-function log(msg) {
-  console.log(msg)
-}
+initProgressLog(join(root, 'setup-log.txt'))
 
 function ensureEnv(exampleRel, targetRel) {
   const example = join(root, exampleRel)
   const target = join(root, targetRel)
   if (existsSync(target)) {
-    log(`  ✓ ${targetRel} (already exists)`)
+    progress(`Config OK: ${targetRel} (already exists)`)
     return
   }
   if (!existsSync(example)) {
     throw new Error(`Missing ${exampleRel}`)
   }
   copyFileSync(example, target)
-  log(`  ✓ Created ${targetRel}`)
+  progress(`Created ${targetRel}`)
+}
+
+function finalizeServerEnv() {
+  const target = join(root, 'server/.env')
+  if (!existsSync(target)) return
+  let content = readFileSync(target, 'utf8')
+  if (content.includes('JWT_SECRET=change-this-secret')) {
+    content = content.replace(
+      'JWT_SECRET=change-this-secret',
+      `JWT_SECRET=${randomBytes(24).toString('hex')}`,
+    )
+    progress('Generated secure JWT_SECRET in server/.env')
+  }
+  const mongod = findBundledMongod()
+  if (mongod && !/MONGODB_SYSTEM_BINARY=/m.test(content)) {
+    const line = `MONGODB_SYSTEM_BINARY=${mongod.replace(/\\/g, '/')}\n`
+    content += line
+    progress('Using bundled MongoDB (no download needed)')
+  }
+  writeFileSync(target, content)
+}
+
+function applyBundledMongoEnv() {
+  const mongod = findBundledMongod()
+  if (mongod) {
+    process.env.MONGODB_SYSTEM_BINARY = mongod
+  }
+}
+
+function verifyOfflinePackages() {
+  const required = [
+    join(root, 'server', 'node_modules', 'mongoose'),
+    join(root, 'client', 'node_modules', 'vite'),
+    join(root, 'node_modules'),
+  ]
+  for (const path of required) {
+    if (!existsSync(path)) {
+      throw new Error(
+        `Offline package is incomplete (missing ${path}).\n` +
+          'Use the full BappiStores-Share zip from IT, or run build:share on a dev PC.',
+      )
+    }
+  }
+  if (!findBundledMongod()) {
+    throw new Error(
+      'Offline package is missing bundled MongoDB (bundled/mongod.exe).\n' +
+        'Use the full zip from IT — do not delete the bundled/ folder.',
+    )
+  }
+  if (!existsSync(getNodeExe()) && getNodeExe() !== process.execPath) {
+    throw new Error(`Bundled Node.js not found: ${getNodeExe()}`)
+  }
 }
 
 function hasPersistedShopData() {
@@ -44,79 +100,108 @@ function main() {
   if (nodeMajor < 20) {
     throw new Error(
       `Node.js 20 or newer is required (you have ${process.versions.node}).\n` +
-        'Download LTS from https://nodejs.org then run setup again.',
+        (offline
+          ? 'The bundled Node.js may be missing — use the full offline zip.'
+          : 'Download LTS from https://nodejs.org then run setup again.'),
     )
   }
 
-  log('\n========================================')
-  log('  Bappi Stores — automatic setup')
-  log('========================================\n')
+  banner('Bappi Stores — SETUP (first-time install)')
+  progress(`Node.js ${process.versions.node}`)
+  if (offline) {
+    progress('Offline package detected — no internet required.')
+  } else {
+    progress('This may take 5–15 minutes on first run (downloads packages + database).')
+  }
+  progress('Full log also saved to: setup-log.txt')
 
-  log('Step 1/5 — Config files')
+  step(1, TOTAL_STEPS, 'Config files')
   ensureEnv('server/.env.example', 'server/.env')
   ensureEnv('client/.env.example', 'client/.env')
+  applyBundledMongoEnv()
+  finalizeServerEnv()
+  stepOk('Configuration ready')
 
-  log('\nStep 2/5 — Install packages (root)')
-  runNpm(['install'], root)
+  if (offline) {
+    step(2, TOTAL_STEPS, 'Verify offline bundle')
+    verifyOfflinePackages()
+    stepOk('All packages and database engine present')
+  } else {
+    step(2, TOTAL_STEPS, 'Install packages (main app)')
+    progress('Running npm install in project root…')
+    runNpm(['install'], root)
+    stepOk('Main packages installed')
 
-  log('\nStep 3/5 — Install packages (client)')
-  runNpm(['install'], join(root, 'client'))
+    step(3, TOTAL_STEPS, 'Install packages (shop screens)')
+    progress('Running npm install in client/…')
+    runNpm(['install'], join(root, 'client'))
+    stepOk('Client packages installed')
 
-  log('\nStep 4/5 — Install packages (server)')
-  runNpm(['install'], join(root, 'server'))
+    step(4, TOTAL_STEPS, 'Install packages (server)')
+    progress('Running npm install in server/…')
+    runNpm(['install'], join(root, 'server'))
+    stepOk('Server packages installed')
+  }
 
   const alreadyInstalled =
     existsSync(join(root, '.setup-complete')) || hasPersistedShopData()
 
+  const dbStep = offline ? 3 : 5
+  step(dbStep, TOTAL_STEPS, alreadyInstalled ? 'Finish (keep existing data)' : 'Database + admin user')
+
   if (alreadyInstalled) {
-    log('\nStep 5/5 — Shop data found (skipping sample seed)')
-    log('  Your existing sales, products, and customers are kept.')
-    log('  For a new version in this folder, use UPDATE.bat instead of SETUP.')
+    progress('Existing shop data found — skipping sample products.')
+    progress('For a software update, use UPDATE.bat instead of SETUP.')
   } else {
-    log('\nStep 5/5 — Admin login + sample products (first install only)')
+    if (offline) {
+      progress('Starting built-in database (bundled — no download)…')
+    } else {
+      progress('Downloading built-in database engine (internet required, one time)…')
+      progress('After download, first start can take 2–5 minutes on slow PCs — please wait…')
+    }
+    applyBundledMongoEnv()
+    runNodeScript(join(root, 'server', 'src', 'prefetch-db.js'), [], join(root, 'server'))
+    stepOk('Database engine ready')
+    progress('Creating admin login and sample products…')
     runNodeScript(join(root, 'server', 'src', 'seed.js'), [], join(root, 'server'))
+    stepOk('Admin user and sample data created')
   }
 
   writeFileSync(join(root, '.setup-complete'), new Date().toISOString())
+  if (!alreadyInstalled) {
+    mkdirSync(join(root, 'data'), { recursive: true })
+    writeFileSync(join(root, 'data/.shop-in-use'), new Date().toISOString())
+  }
 
-  log('\nOptional — Local hostname (bappistores)')
+  progress('Optional: local hostname (bappistores)…')
   try {
     runNodeScript(join(root, 'scripts', 'configure-hostname.mjs'), [], root)
   } catch (err) {
-    log(`  (skipped: ${err.message})`)
+    progress(`Hostname step skipped: ${err.message}`)
   }
 
   const url = appUrl(5001)
 
-  log('\n========================================')
-  log('  Setup finished successfully!')
-  log('========================================\n')
-  log('Login:  admin@bappi.com')
-  log('Password: admin123')
-  log('')
+  banner('SETUP FINISHED SUCCESSFULLY')
+  progress(`Open in browser: ${url}`)
+  progress('Login: admin@bappi.com  /  Password: admin123')
   if (isWin) {
-    log('To open the shop app: double-click  START.bat')
+    progress('Next: double-click START.bat every day.')
   } else {
-    log('To open the shop app: double-click  START.command')
+    progress('Next: double-click START.command every day.')
   }
-  log('')
-  log(`Browser address: ${url}`)
-  log('(Run CONFIGURE-HOSTNAME.bat as Admin once if that link does not open)')
-  log('')
-  log('Your data is saved in the  data/mongodb  folder.')
-  log('Product photos are in  server/uploads .')
-  log('Before updates: double-click BACKUP.bat')
-  log('To install updates: double-click UPDATE.bat (not SETUP)')
-  log('')
+  progress('Your data is saved in data/mongodb (do not delete that folder).')
 }
 
 try {
   main()
 } catch (err) {
+  fail(err.message || String(err))
   console.error('\n========================================')
   console.error('  Setup failed')
   console.error('========================================\n')
   console.error(err.message || String(err))
   if (err.stack) console.error(err.stack)
+  progress('See setup-log.txt in this folder for the full log.')
   process.exit(1)
 }

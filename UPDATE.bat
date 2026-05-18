@@ -3,29 +3,39 @@ setlocal
 title Bappi Stores - Update
 cd /d "%~dp0"
 
+set "NODE_EXE=%~dp0bundled\nodejs\node.exe"
+if exist "%NODE_EXE%" (
+  set "PATH=%~dp0bundled\nodejs;%PATH%"
+  goto :run_update
+)
+
 where node >nul 2>nul
 if errorlevel 1 (
-  echo Install Node.js from https://nodejs.org
+  echo Install Node.js from https://nodejs.org or use the offline zip.
   pause
   exit /b 1
 )
+set "NODE_EXE=node"
 
+:run_update
 echo.
-echo  This updates the app and keeps your sales records.
-echo  It does NOT delete data\mongodb or server\uploads .
+echo  ==================================================
+echo   BAPPI STORES - UPDATE
+echo  ==================================================
+echo.
+echo  Progress below. Do NOT close this window.
+echo  Log saved to update-log.txt
 echo.
 
-node "%~dp0scripts\update.mjs" > "%~dp0update-log.txt" 2>&1
+"%NODE_EXE%" "%~dp0scripts\update.mjs"
 if errorlevel 1 (
   echo.
-  echo  UPDATE FAILED — see update-log.txt
+  echo  UPDATE FAILED — see messages above and update-log.txt
   echo.
-  type "%~dp0update-log.txt"
   pause
   exit /b 1
 )
 
-type "%~dp0update-log.txt"
 echo.
 pause
 exit /b 0

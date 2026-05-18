@@ -60,8 +60,17 @@ async function start() {
   });
 }
 
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled error (app keeps running):", err?.message || err);
+});
+
 start().catch((err) => {
   console.error("Startup failed:", err.message);
+  if (err.code === 11000) {
+    console.error(
+      "Duplicate invoice in database. From server folder run: node src/fix-duplicate-invoices.js",
+    );
+  }
   process.exit(1);
 });
 

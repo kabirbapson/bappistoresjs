@@ -15,10 +15,19 @@ if (!existsSync(join(root, 'server', 'node_modules'))) {
   process.exit(1)
 }
 
+console.log('')
+console.log('==================================================')
+console.log('  Bappi Stores is starting…')
+console.log('==================================================')
+console.log('')
+
 if (!existsSync(distIndex)) {
-  console.log('Building shop screens (first start)…\n')
+  console.log('[1/2] Building shop screens (first start) — please wait…')
   runNpm(['run', 'build'], join(root, 'client'))
+  console.log('      Done.\n')
 }
 
-console.log('Starting Bappi Stores…\n')
+console.log('[2/2] Starting server…')
+console.log('      Browser: http://bappistores:5001')
+console.log('      Leave this window open while using the app.\n')
 runNodeScript(serverEntry, [], join(root, 'server'))

@@ -13,7 +13,8 @@ ONE-TIME SETUP
 --------------
 Windows:
   Double-click  SETUP.bat
-  Wait until it says "Setup finished" (may take 5–10 minutes)
+  Watch the black window — progress shows step by step (5–15 minutes)
+  Do not close the window until it says "SETUP FINISHED SUCCESSFULLY"
 
 Mac:
   Double-click  SETUP.command
@@ -88,6 +89,13 @@ TROUBLESHOOTING
 Port already in use
   → Edit server\.env and change PORT=5001 to PORT=5002
   → Open http://bappistores:5002 instead.
+
+Setup failed with "EFTYPE" or "failed to start within 10000ms"?
+  → The download may have finished — first START can take 2–5 minutes on slow PCs.
+  → Run SETUP.bat again and wait (do not close the window).
+  → Allow this app folder in Windows Defender / antivirus.
+  → Or double-click  REPAIR-DATABASE.bat  then SETUP.bat again.
+  → Your sales in  data\mongodb  are not deleted by repair.
 
 Setup failed on Windows?
   → Open  setup-log.txt  in this folder (created by SETUP.bat)

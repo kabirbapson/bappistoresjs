@@ -6,53 +6,70 @@ import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { appUrl } from './app-host.mjs'
+import { banner, fail, initProgressLog, progress, step, stepOk } from './progress.mjs'
+import { isOfflineBundle } from './node-runtime.mjs'
 import { runNpm } from './spawn-utils.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const offline = isOfflineBundle()
+const TOTAL_STEPS = offline ? 2 : 3
 
-function log(msg) {
-  console.log(msg)
-}
+initProgressLog(join(root, 'update-log.txt'))
 
 function main() {
   if (!existsSync(join(root, '.setup-complete')) && !existsSync(join(root, 'data/mongodb'))) {
-    log('\nNo existing install found. Run SETUP.bat first (one time).\n')
+    progress('No existing install found. Run SETUP.bat first (one time).')
     process.exit(1)
   }
 
-  log('\n========================================')
-  log('  Bappi Stores — update (keep your data)')
-  log('========================================\n')
-  log('Your records in  data/mongodb  and product photos in  server/uploads')
-  log('are NOT deleted by this update.\n')
+  banner('Bappi Stores — UPDATE (keeps your sales)')
+  progress('Your data in data/mongodb and server/uploads will NOT be deleted.')
+  if (offline) {
+    progress('Offline package — skipping npm downloads (use a new zip from IT for dependency updates).')
+  }
+  progress('Full log also saved to: update-log.txt')
 
-  log('Step 1/3 — Install / refresh packages (root)')
-  runNpm(['install'], root)
+  if (offline) {
+    step(1, TOTAL_STEPS, 'Verify offline packages')
+    if (!existsSync(join(root, 'server', 'node_modules'))) {
+      throw new Error('server/node_modules missing. Copy the full offline zip from IT.')
+    }
+    stepOk('Packages present')
+  } else {
+    step(1, TOTAL_STEPS, 'Refresh packages (root)')
+    progress('Running npm install…')
+    runNpm(['install'], root)
+    stepOk('Root packages updated')
 
-  log('\nStep 2/3 — Install / refresh packages (client + server)')
-  runNpm(['install'], join(root, 'client'))
-  runNpm(['install'], join(root, 'server'))
+    step(2, TOTAL_STEPS, 'Refresh packages (client + server)')
+    progress('Running npm install in client/…')
+    runNpm(['install'], join(root, 'client'))
+    progress('Running npm install in server/…')
+    runNpm(['install'], join(root, 'server'))
+    stepOk('Client and server packages updated')
+  }
 
-  log('\nStep 3/3 — Build shop app (latest screens)')
+  const buildStep = offline ? 2 : 3
+  step(buildStep, TOTAL_STEPS, 'Build latest shop screens')
+  progress('Running production build (vite build)…')
   runNpm(['run', 'build'], join(root, 'client'))
-
-  log('\nDone (sample seed skipped — your sales are unchanged)')
+  stepOk('Shop app built')
 
   const url = appUrl(5001)
-  log('\n========================================')
-  log('  Update finished')
-  log('========================================\n')
-  log(`Open the shop: ${url}`)
-  log('Double-click START.bat to run.\n')
+  banner('UPDATE FINISHED')
+  progress(`Open the shop: ${url}`)
+  progress('Double-click START.bat to run.')
 }
 
 try {
   main()
 } catch (err) {
+  fail(err.message || String(err))
   console.error('\n========================================')
   console.error('  Update failed')
   console.error('========================================\n')
   console.error(err.message || String(err))
   if (err.stack) console.error(err.stack)
+  progress('See update-log.txt in this folder for the full log.')
   process.exit(1)
 }
