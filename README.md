@@ -33,7 +33,7 @@ From the project folder (developers):
 npm run build:share
 ```
 
-This creates **`BappiStores-Share/`** with a production UI build inside. Zip that folder and send it. On each PC they run **SETUP.bat** once, then **START.bat** daily.
+This creates **`builds/BappiStores-Share/`** with a production UI build inside. Zip that folder and send it. On each PC they run **SETUP.bat** once, then **START.bat** daily.
 
 **Records persist** in `data/mongodb` (and product photos in `server/uploads`). When you ship an update, tell users to read **`UPGRADE.txt`**: run **UPDATE.bat**, not SETUP.bat, and never delete the `data` folder.
 

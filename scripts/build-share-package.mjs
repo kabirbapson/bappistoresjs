@@ -1,5 +1,5 @@
 /**
- * Creates BappiStores-Share/ — offline-ready zip for shop PCs (no internet on SETUP).
+ * Creates builds/BappiStores-Share/ — offline-ready zip for shop PCs (no internet on SETUP).
  * Run on a Windows dev PC with internet: npm run build:share
  */
 import { randomBytes } from 'crypto'
@@ -11,7 +11,9 @@ import { banner, progress, step, stepOk } from './progress.mjs'
 import { runNpm } from './spawn-utils.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-let dest = join(root, 'BappiStores-Share')
+const BUILDS_DIR = join(root, 'builds')
+const PACKAGE_NAME = 'BappiStores-Share'
+let dest = join(BUILDS_DIR, PACKAGE_NAME)
 
 const CP_OPTS = { recursive: true, maxRetries: 5, retryDelay: 500 }
 
@@ -66,7 +68,7 @@ function prepareDestFolder() {
     mkdirSync(dest, { recursive: true })
   } catch (err) {
     if (err.code === 'EBUSY' || err.code === 'EPERM') {
-      dest = join(root, `BappiStores-Share-${Date.now()}`)
+      dest = join(BUILDS_DIR, `${PACKAGE_NAME}-${Date.now()}`)
       console.warn(`\n  Folder locked — using ${dest} instead.\n`)
       mkdirSync(dest, { recursive: true })
       return
@@ -104,7 +106,7 @@ const SKIP_DIR_NAMES = new Set([
   '.git',
   '.cursor',
   '.vscode',
-  'BappiStores-Share',
+  'builds',
   'Backups',
   'dist',
 ])
@@ -188,7 +190,9 @@ function shopServerEnv() {
 
 const TOTAL = 6
 
-banner('Building BappiStores-Share (offline package)')
+mkdirSync(BUILDS_DIR, { recursive: true })
+
+banner(`Building ${PACKAGE_NAME} → builds/`)
 releaseShopLocks()
 progress('Close npm run dev / START.bat on this PC before building if copies still fail.\n')
 
@@ -305,6 +309,7 @@ More help: SETUP.txt and UPGRADE.txt
 
 banner('OFFLINE SHARE PACKAGE READY')
 progress(`Folder: ${dest}`)
-progress('Zip the entire folder and copy to shop PCs (USB or network).')
+progress(`All builds live under: ${BUILDS_DIR}`)
+progress('Zip the BappiStores-Share folder and copy to shop PCs (USB or network).')
 progress('On each PC: SETUP.bat once, then START.bat daily.')
 progress('Shop PCs do not need internet for setup.\n')

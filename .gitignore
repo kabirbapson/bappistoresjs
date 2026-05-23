@@ -13,14 +13,31 @@ server/node_modules
 data/mongodb
 server/uploads
 data/mongodb-bin
-BappiStores-Share
-BappiStores-Share-*
+
+# All offline share packages (npm run build:share → builds/BappiStores-Share/)
+builds/*
+!builds/README.md
+
+# Legacy deploy folders at repo root (safe to delete after moving to builds/)
+BappiStores-Share/
+BappiStores-Share-*/
+BappiStores-GLO/
+BappiStores-Others/
+BappiStores-*.zip
+build-share-log.txt
+
+# Bundled Node + MongoDB for offline installs
 bundled/
-Backups
+
+# Backups & shop logs
+Backups/
 setup-log.txt
 update-log.txt
-dist
-dist-ssr
+
+# Production / Vite build output
+dist/
+dist-ssr/
+client/dist/
 *.local
 .env
 .setup-complete

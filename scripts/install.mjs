@@ -70,7 +70,7 @@ function verifyOfflinePackages() {
     if (!existsSync(path)) {
       throw new Error(
         `Offline package is incomplete (missing ${path}).\n` +
-          'Use the full BappiStores-Share zip from IT, or run build:share on a dev PC.',
+          'Use the full offline zip from IT (builds/BappiStores-Share), or run build:share on a dev PC.',
       )
     }
   }
