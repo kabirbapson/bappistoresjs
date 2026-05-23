@@ -20,16 +20,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/** After UPDATE or server/.env change, old tokens fail — sign in again instead of blank screens / 401 loops. */
 api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401 && !err.config?.url?.includes("/auth/login")) {
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || "";
+    if (status === 401 && !url.includes("/auth/login")) {
       localStorage.removeItem("bappi_token");
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
+      const path = window.location.pathname || "";
+      if (!path.startsWith("/login")) {
+        window.location.replace("/login");
       }
     }
-    return Promise.reject(err);
+    return Promise.reject(error);
   },
 );
 

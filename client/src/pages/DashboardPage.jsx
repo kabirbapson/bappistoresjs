@@ -84,19 +84,7 @@ export default function DashboardPage() {
     api
       .get('/reports/dashboard')
       .then((res) => setStats(res.data))
-      .catch(() => {
-        setStats({
-          cards: {
-            dailySales: 0,
-            outstandingDebt: 0,
-            totalProducts: 0,
-            lowStockAlerts: 0,
-            totalStockValue: 0,
-            totalPaymentsReceived: 0,
-          },
-          dailySales: [],
-        })
-      })
+      .catch(() => setStats(null))
       .finally(() => setLoading(false))
   }, [])
 
@@ -156,6 +144,19 @@ export default function DashboardPage() {
               <div className="mt-4 min-h-0 flex-1 rounded-lg bg-slate-100" />
             </div>
           </>
+        ) : !stats ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-900">
+            <p className="font-medium">Could not load the dashboard.</p>
+            <p className="mt-2 text-amber-800">
+              After a software update, sign out and sign in again with your admin password.
+            </p>
+            <Link
+              to="/login"
+              className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-800"
+            >
+              Go to sign in
+            </Link>
+          </div>
         ) : (
           <>
             <div className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
@@ -164,7 +165,7 @@ export default function DashboardPage() {
                   key={key}
                   to={CARD_LINKS[key]}
                   label={DASHBOARD_LABELS[key] || key}
-                  value={formatDashboardValue(key, stats.cards[key])}
+                  value={formatDashboardValue(key, stats.cards?.[key])}
                   className={CARD_STYLES[key] || 'border-slate-200 bg-white'}
                 />
               ))}
@@ -176,7 +177,7 @@ export default function DashboardPage() {
                   <h2 className="text-lg font-semibold text-slate-900">Sales trend</h2>
                   <p className="text-sm text-slate-500">Last 14 days — amounts in Naira (₦)</p>
                 </div>
-                {stats.cards.dailySales > 0 && (
+                {(stats.cards?.dailySales ?? 0) > 0 && (
                   <p className="text-sm text-slate-600">
                     Today:{' '}
                     <span className="font-bold text-emerald-700">
