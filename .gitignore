@@ -24,6 +24,7 @@ BappiStores-Share-*/
 BappiStores-GLO/
 BappiStores-Others/
 BappiStores-*.zip
+*.zip
 build-share-log.txt
 
 # Bundled Node + MongoDB for offline installs
