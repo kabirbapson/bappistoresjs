@@ -27,6 +27,18 @@ const mongodPath = await MongoBinary.getPath({
 console.log(`MongoDB binary ready: ${mongodPath}`);
 
 const bundledCopy = path.join(root, "bundled", "mongod.exe");
-copyFileSync(mongodPath, bundledCopy);
+if (existsSync(bundledCopy)) {
+  console.log("bundled/mongod.exe already present — skipping copy");
+} else {
+  try {
+    copyFileSync(mongodPath, bundledCopy);
+    console.log("Saved bundled/mongod.exe");
+  } catch (err) {
+    if (err?.code === "EBUSY" && existsSync(mongodPath)) {
+      console.log("bundled/mongod.exe locked (app may be running) — using existing copy");
+    } else {
+      throw err;
+    }
+  }
+}
 writeFileSync(path.join(root, "bundled", "mongod-path.txt"), mongodPath, "utf8");
-console.log("Saved bundled/mongod.exe");

@@ -3,7 +3,8 @@
  * Run on a Windows dev PC with internet: npm run build:share
  */
 import { randomBytes } from 'crypto'
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { spawnSync } from 'child_process'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { banner, progress, step, stepOk } from './progress.mjs'
@@ -11,6 +12,49 @@ import { runNpm } from './spawn-utils.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 let dest = join(root, 'BappiStores-Share')
+
+const CP_OPTS = { recursive: true, maxRetries: 5, retryDelay: 500 }
+
+function sleepMs(ms) {
+  if (process.platform === 'win32') {
+    spawnSync('powershell', ['-NoProfile', '-Command', `Start-Sleep -Milliseconds ${ms}`], {
+      stdio: 'ignore',
+      windowsHide: true,
+    })
+  } else {
+    spawnSync('sleep', [String(Math.ceil(ms / 1000))], { stdio: 'ignore' })
+  }
+}
+
+/** Stop shop server + mongod so bundled/ and data/ are not locked during the zip build. */
+function releaseShopLocks() {
+  progress('Stopping shop server / database if running (avoids locked files)…')
+  const pidFile = join(root, 'data', '.server.pid')
+  if (existsSync(pidFile)) {
+    const pid = readFileSync(pidFile, 'utf8').trim()
+    const n = Number(pid)
+    if (Number.isFinite(n) && n > 0) {
+      if (process.platform === 'win32') {
+        spawnSync('taskkill', ['/PID', String(n), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+      } else {
+        try {
+          process.kill(n, 'SIGTERM')
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    try {
+      unlinkSync(pidFile)
+    } catch {
+      /* ignore */
+    }
+  }
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/F', '/IM', 'mongod.exe'], { stdio: 'ignore', windowsHide: true })
+  }
+  sleepMs(2000)
+}
 
 function prepareDestFolder() {
   if (!existsSync(dest)) {
@@ -46,6 +90,7 @@ const COPY_FILES = [
   'CONFIGURE-HOSTNAME.bat',
   'REPAIR-DATABASE.bat',
   'FIX-INVOICES.bat',
+  'STOP-APP.bat',
   'RESTORE-BACKUP.bat',
   'scripts/repair-database.bat',
   'SETUP.command',
@@ -76,7 +121,7 @@ function copyDir(src, dst) {
       copyDir(join(src, entry.name), join(dst, entry.name))
     } else if (entry.isFile()) {
       if (shouldSkipFile(entry.name)) continue
-      cpSync(join(src, entry.name), join(dst, entry.name))
+      cpSync(join(src, entry.name), join(dst, entry.name), CP_OPTS)
     }
   }
 }
@@ -88,7 +133,44 @@ function copyNodeModules(label, relPath) {
   }
   const dst = relPath ? join(dest, relPath, 'node_modules') : join(dest, 'node_modules')
   progress(`Copying ${label} node_modules (large, please wait)…`)
-  cpSync(src, dst, { recursive: true })
+  cpSync(src, dst, CP_OPTS)
+}
+
+function copyBundledFolder() {
+  const src = join(root, 'bundled')
+  const dst = join(dest, 'bundled')
+  if (!existsSync(src)) {
+    throw new Error('bundled/ missing — step 2 (MongoDB + Node) did not finish')
+  }
+  progress('Copying bundled/ (MongoDB + Node.js)…')
+  try {
+    cpSync(src, dst, CP_OPTS)
+  } catch (err) {
+    if (err.code === 'EBUSY' || err.code === 'EPERM') {
+      console.warn('  bundled/ partially locked — copying file-by-file…')
+      mkdirSync(dst, { recursive: true })
+      for (const entry of readdirSync(src, { withFileTypes: true })) {
+        const from = join(src, entry.name)
+        const to = join(dst, entry.name)
+        try {
+          if (entry.isDirectory()) {
+            cpSync(from, to, CP_OPTS)
+          } else {
+            cpSync(from, to)
+          }
+        } catch (copyErr) {
+          if ((copyErr.code === 'EBUSY' || copyErr.code === 'EPERM') && existsSync(to)) {
+            console.warn(`  skipped locked (already present): ${entry.name}`)
+            continue
+          }
+          throw copyErr
+        }
+      }
+    } else {
+      throw err
+    }
+  }
+  console.log('  + bundled/')
 }
 
 function shopServerEnv() {
@@ -107,6 +189,8 @@ function shopServerEnv() {
 const TOTAL = 6
 
 banner('Building BappiStores-Share (offline package)')
+releaseShopLocks()
+progress('Close npm run dev / START.bat on this PC before building if copies still fail.\n')
 
 step(1, TOTAL, 'Install all packages (build PC only — needs internet)')
 progress('npm install in project root…')
@@ -134,7 +218,7 @@ prepareDestFolder()
 for (const file of COPY_FILES) {
   const src = join(root, file)
   if (existsSync(src)) {
-    cpSync(src, join(dest, file))
+    cpSync(src, join(dest, file), CP_OPTS)
     console.log(`  + ${file}`)
   }
 }
@@ -149,7 +233,7 @@ for (const dir of COPY_DIRS) {
 
 const clientDist = join(root, 'client', 'dist')
 if (existsSync(clientDist)) {
-  cpSync(clientDist, join(dest, 'client', 'dist'), { recursive: true })
+  cpSync(clientDist, join(dest, 'client', 'dist'), CP_OPTS)
   console.log('  + client/dist/')
 }
 
@@ -158,10 +242,7 @@ copyNodeModules('root', '')
 copyNodeModules('client', 'client')
 copyNodeModules('server', 'server')
 
-if (existsSync(join(root, 'bundled'))) {
-  cpSync(join(root, 'bundled'), join(dest, 'bundled'), { recursive: true })
-  console.log('  + bundled/')
-}
+copyBundledFolder()
 
 writeFileSync(
   join(dest, 'bundled', 'OFFLINE.txt'),
@@ -176,6 +257,7 @@ writeFileSync(join(dest, 'server', '.env'), shopServerEnv())
 writeFileSync(join(dest, 'client', '.env'), readFileSync(join(root, 'client/.env.example'), 'utf8'))
 mkdirSync(join(dest, 'data'), { recursive: true })
 mkdirSync(join(dest, 'server', 'uploads', 'products'), { recursive: true })
+mkdirSync(join(dest, 'server', 'uploads', 'branding'), { recursive: true })
 console.log('  + server/.env, client/.env, data/, uploads/')
 
 writeFileSync(
@@ -212,6 +294,8 @@ Do NOT delete:
   bundled/         — required for database and Node.js
 
 Database error? Run REPAIR-DATABASE.bat then SETUP.bat again.
+Duplicate invoice error? Run FIX-INVOICES.bat (START.bat can stay open).
+Receipt not printing? Open receipt preview, choose paper width, click Print receipt (scale 100%).
 Setup failed? Open setup-log.txt and send to IT.
 
 Zip size is large (~1 GB) because everything is included.

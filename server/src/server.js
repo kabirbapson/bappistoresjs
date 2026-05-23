@@ -1,7 +1,7 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "fs";
 import mongoose from "mongoose";
 import morgan from "morgan";
 import path from "path";
@@ -12,6 +12,8 @@ import router from "./routes.js";
 import { productUploadsDir } from "./productUpload.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "../..");
+const serverPidFile = path.join(projectRoot, "data", ".server.pid");
 const uploadsRoot = path.resolve(__dirname, "../uploads");
 const clientDist = path.resolve(__dirname, "../../client/dist");
 const clientIndex = path.join(clientDist, "index.html");
@@ -55,9 +57,19 @@ async function start() {
 
   const host = process.env.APP_HOST || "bappistores";
   server = app.listen(port, "0.0.0.0", () => {
+    mkdirSync(path.dirname(serverPidFile), { recursive: true });
+    writeFileSync(serverPidFile, String(process.pid), "utf8");
     console.log(`Open the app: http://${host}:${port}`);
     console.log(`            http://localhost:${port}`);
   });
+}
+
+function clearServerPidFile() {
+  try {
+    if (existsSync(serverPidFile)) unlinkSync(serverPidFile);
+  } catch {
+    /* ignore */
+  }
 }
 
 process.on("unhandledRejection", (err) => {
@@ -75,7 +87,10 @@ start().catch((err) => {
 });
 
 process.on("SIGINT", async () => {
+  clearServerPidFile();
   server?.close();
   await closeDB();
   process.exit(0);
 });
+
+process.on("exit", clearServerPidFile);

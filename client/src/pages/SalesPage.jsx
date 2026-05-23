@@ -284,7 +284,11 @@ export default function SalesPage() {
       </div>
 
       {lastInvoice && (
-        <InvoiceReceipt invoice={lastInvoice} onClose={() => setLastInvoice(null)} />
+        <InvoiceReceipt
+          invoice={lastInvoice}
+          title="Reprint receipt"
+          onClose={() => setLastInvoice(null)}
+        />
       )}
     </PageShell>
   )

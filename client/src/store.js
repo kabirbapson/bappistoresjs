@@ -14,5 +14,5 @@ export const useAuthStore = create((set) => ({
   logout: () => {
     localStorage.removeItem("bappi_token");
     set({ token: null, user: null });
-  }
+  },
 }));

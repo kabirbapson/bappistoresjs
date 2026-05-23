@@ -34,6 +34,9 @@ export default function LoginPage() {
           nameClassName="mt-3 text-lg font-semibold tracking-wide text-slate-900"
         />
         <p className="text-center text-sm text-slate-500">Admin login</p>
+        <p className="text-center text-xs text-amber-800">
+          After an update, sign in again even if the app looked logged in before.
+        </p>
         <label className="block text-sm">
           <span className="mb-1 block text-slate-600">Email</span>
           <input

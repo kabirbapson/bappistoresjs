@@ -15,9 +15,26 @@ import { verifyDeletePassword } from "./deleteAuth.js";
 import { applySaleStockChange } from "./saleStock.js";
 import { markShopHasRealData } from "./shopDataMarker.js";
 import { productImageUpload } from "./productUpload.js";
+import { fixDuplicateInvoices } from "./fixDuplicateInvoices.js";
 import { Customer, Debt, Payment, Product, Sale, StockLog, User } from "./models.js";
 
 const router = express.Router();
+
+/** Fix duplicate invoice numbers — no app restart; use FIX-INVOICES.bat while shop is open. */
+router.post("/maintenance/fix-invoices", async (req, res) => {
+  const key = req.headers["x-maintenance-key"];
+  const expected = process.env.MAINTENANCE_SECRET || "local-fix-invoices";
+  if (!key || key !== expected) {
+    return res.status(403).json({ message: "Invalid maintenance key" });
+  }
+  try {
+    const result = await fixDuplicateInvoices();
+    res.json(result);
+  } catch (err) {
+    console.error("fix-invoices:", err);
+    res.status(500).json({ message: err.message || "Fix failed" });
+  }
+});
 
 router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;

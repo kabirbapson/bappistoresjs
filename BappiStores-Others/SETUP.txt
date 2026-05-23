@@ -1,0 +1,105 @@
+BAPPI STORES — SETUP FOR A NEW COMPUTER
+======================================
+
+WHAT YOU NEED (once per computer)
+---------------------------------
+1. Install Node.js LTS from https://nodejs.org
+   - Windows: use the default installer, keep "Add to PATH" checked
+   - Mac: use the .pkg installer
+   - Restart the computer if the installer asks you to
+
+
+ONE-TIME SETUP
+--------------
+Windows:
+  Double-click  SETUP.bat
+  Watch the black window — progress shows step by step (5–15 minutes)
+  Do not close the window until it says "SETUP FINISHED SUCCESSFULLY"
+
+Mac:
+  Double-click  SETUP.command
+  (If Mac says it cannot open: right-click → Open → Open)
+  Wait until it says "Setup finished"
+
+
+HOSTNAME (so the address is bappistores, not localhost)
+-------------------------------------------------------
+Windows (once, as Administrator):
+  Right-click  CONFIGURE-HOSTNAME.bat  →  Run as administrator
+
+Mac (once, in Terminal):
+  cd to this folder, then:
+  sudo node scripts/configure-hostname.mjs --write
+
+After that, use:  http://bappistores:5001
+If you skip this step, http://localhost:5001 still works.
+
+
+EVERY DAY — RUN THE SHOP APP
+----------------------------
+Windows:  Double-click  START.bat
+Mac:      Double-click  START.command
+
+Your browser opens: http://bappistores:5001
+
+Login:
+  Email:    admin@bappi.com
+  Password: admin123
+
+Leave the black/white window open while working.
+Close that window (or press Ctrl+C) when you are done for the day.
+
+
+YOUR DATA IS SAVED ON THIS COMPUTER
+-----------------------------------
+All sales, products, customers, and debts are stored in:
+
+  data\mongodb   (inside this app folder)
+
+When you shut down or restart the PC and run START again,
+you will see yesterday's data — nothing is lost.
+
+To back up your records:
+  Double-click  BACKUP.bat  (saves to Backups\ folder)
+  Or copy  data\mongodb  and  server\uploads  to USB yourself.
+
+
+SOFTWARE UPDATE (new version from your supplier)
+------------------------------------------------
+Read  UPGRADE.txt  in this folder.
+
+Summary:
+  - Use  UPDATE.bat  (keeps your sales)
+  - Do NOT use  SETUP.bat  again on a PC that already has data
+  - Never delete  data\mongodb  or  server\uploads
+
+
+TROUBLESHOOTING
+---------------
+"bappistores" does not open in the browser
+  → Run CONFIGURE-HOSTNAME.bat as Administrator (Windows)
+  → Or use http://localhost:5001 instead
+
+"node is not recognized"
+  → Install Node.js from nodejs.org, restart PC, run SETUP again.
+
+"Setup has not been run"
+  → Run SETUP.bat or SETUP.command first.
+
+Port already in use
+  → Edit server\.env and change PORT=5001 to PORT=5002
+  → Open http://bappistores:5002 instead.
+
+Setup failed with "EFTYPE" or "failed to start within 10000ms"?
+  → The download may have finished — first START can take 2–5 minutes on slow PCs.
+  → Run SETUP.bat again and wait (do not close the window).
+  → Allow this app folder in Windows Defender / antivirus.
+  → Or double-click  REPAIR-DATABASE.bat  then SETUP.bat again.
+  → Your sales in  data\mongodb  are not deleted by repair.
+
+Setup failed on Windows?
+  → Open  setup-log.txt  in this folder (created by SETUP.bat)
+  → Send that file to your IT contact.
+
+Need help?
+  → Send setup-log.txt or a photo of the error message to your IT contact.

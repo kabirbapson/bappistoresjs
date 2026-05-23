@@ -22,8 +22,16 @@ OPTION A — Update in the same folder (easiest)
      - server\.env   (optional — keep your settings)
 4. Double-click UPDATE.bat
 5. Double-click START.bat
+6. In the browser: open http://bappistores:5001 (or http://localhost:5001)
+7. Sign in again (admin@bappi.com / your password). Old saved login stops
+   working after an update — that fixes blank home page and "401" errors.
 
 Your records stay because the  data  folder was never removed.
+
+client\.env on the shop PC should contain:
+  VITE_API_URL=/api
+If you kept an old client\.env with http://127.0.0.1:5000, fix that line and run
+UPDATE.bat again so the screens talk to the correct server.
 
 
 OPTION B — New folder on the same PC
