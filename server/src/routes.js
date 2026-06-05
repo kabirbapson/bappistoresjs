@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { stringify } from "csv-stringify/sync";
 import { auth, debtStatus } from "./middleware.js";
 import { createSaleDocument, formatInvoice } from "./invoice.js";
-import { buildDateRange, buildFinancialReport } from "./reports.js";
+import { buildDateRange, buildFinancialReport, buildProductSalesHistory } from "./reports.js";
 import {
   debtFieldsFromSale,
   normalizePaymentMethod,
@@ -12,7 +12,13 @@ import {
   normalizeSaleRecord,
 } from "./salePayments.js";
 import { verifyDeletePassword } from "./deleteAuth.js";
-import { applySaleStockChange } from "./saleStock.js";
+import {
+  applySaleStockChange,
+  checkStockForNewSale,
+  deductStockForNewSale,
+  restoreStockFromNewSale,
+} from "./saleStock.js";
+import { LOW_STOCK_THRESHOLD, MAX_PRODUCTS_LIMIT, MAX_SALES_LIMIT } from "./constants.js";
 import { markShopHasRealData } from "./shopDataMarker.js";
 import { productImageUpload } from "./productUpload.js";
 import { fixDuplicateInvoices } from "./fixDuplicateInvoices.js";
@@ -50,7 +56,7 @@ router.use(auth);
 
 router.get("/products", async (req, res) => {
   const page = Number(req.query.page || 1);
-  const limit = Math.min(Number(req.query.limit || 20), 200);
+  const limit = Math.min(Number(req.query.limit || 20), MAX_PRODUCTS_LIMIT);
   const q = req.query.q || "";
   const filter = q ? { name: { $regex: q, $options: "i" } } : {};
   const [items, total] = await Promise.all([
@@ -75,14 +81,22 @@ router.post("/products", async (req, res) => {
   markShopHasRealData();
   res.status(201).json(doc);
 });
-router.put("/products/:id", async (req, res) => res.json(await Product.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+router.put("/products/:id", async (req, res) => {
+  const doc = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  if (!doc) return res.status(404).json({ message: "Product not found" });
+  res.json(doc);
+});
 router.delete("/products/:id", async (req, res) => {
   await Product.findByIdAndDelete(req.params.id);
   res.json({ ok: true });
 });
 router.post("/products/:id/restock", async (req, res) => {
   const qty = Number(req.body.quantity || 0);
+  if (!qty || qty <= 0) {
+    return res.status(400).json({ message: "Enter a valid restock quantity" });
+  }
   const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ message: "Product not found" });
   product.quantity += qty;
   await product.save();
   await StockLog.create({ productId: product._id, change: qty, type: "restock" });
@@ -176,6 +190,10 @@ async function buildSaleProductsFromInput(products) {
     }
 
     const qty = Number(item.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return { error: `Invalid quantity for ${product.name}` };
+    }
+
     totalAmount += unitPrice * qty;
     totalCost += product.costPrice * qty;
     saleProducts.push({
@@ -188,24 +206,6 @@ async function buildSaleProductsFromInput(products) {
   }
 
   return { saleProducts, totalAmount, totalCost };
-}
-
-async function deductStockForNewSale(products) {
-  for (const item of products) {
-    const product = await Product.findById(item.productId);
-    if (!product) return { error: "Product not found" };
-    if (product.quantity < item.quantity) {
-      return { error: `Insufficient stock for ${product.name}` };
-    }
-    product.quantity -= Number(item.quantity);
-    await product.save();
-    await StockLog.create({
-      productId: product._id,
-      change: -Number(item.quantity),
-      type: "sale",
-    });
-  }
-  return { ok: true };
 }
 
 async function syncDebtForSale(sale, pay, customerId) {
@@ -256,15 +256,33 @@ async function syncDebtForSale(sale, pay, customerId) {
   return {};
 }
 
+async function syncSaleFromDebt(debt) {
+  if (!debt.saleId) return;
+  const sale = await Sale.findById(debt.saleId);
+  if (!sale) return;
+
+  const creditRemaining = Math.max(0, Number(debt.balance) || 0);
+  const checkoutPaid = Number(sale.amountPaid) || 0;
+  const debtPaid = Number(debt.amountPaid) || 0;
+
+  sale.creditBalance = creditRemaining;
+  if (creditRemaining <= 0) {
+    sale.type = "paid";
+    sale.creditBalance = 0;
+  } else if (checkoutPaid > 0 || debtPaid > 0) {
+    sale.type = "partial";
+  } else {
+    sale.type = "credit";
+  }
+  await sale.save();
+}
+
 router.post("/sales", async (req, res) => {
   try {
     const { products, customerId, customerName, note, payments } = req.body;
 
     const resolved = await resolveCustomer({ customerId, customerName });
     if (resolved.error) return res.status(400).json({ message: resolved.error });
-
-    const stock = await deductStockForNewSale(products);
-    if (stock.error) return res.status(400).json({ message: stock.error });
 
     const built = await buildSaleProductsFromInput(products);
     if (built.error) return res.status(400).json({ message: built.error });
@@ -279,26 +297,39 @@ router.post("/sales", async (req, res) => {
       });
     }
 
-    const sale = await createSaleDocument({
-      products: saleProducts,
-      totalAmount,
-      totalCost,
-      profit: totalAmount - totalCost,
-      type: pay.type,
-      amountPaid: pay.amountPaid,
-      creditBalance: pay.creditBalance,
-      payments: pay.payments,
-      customerId: resolved.customerId,
-      customerName: resolved.customerName,
-      note,
-    });
+    const stockCheck = await checkStockForNewSale(products);
+    if (stockCheck.error) return res.status(400).json({ message: stockCheck.error });
 
-    if (pay.creditBalance > 0) {
-      await Debt.create({
+    const stock = await deductStockForNewSale(products);
+    if (stock.error) return res.status(400).json({ message: stock.error });
+
+    let sale;
+    try {
+      sale = await createSaleDocument({
+        products: saleProducts,
+        totalAmount,
+        totalCost,
+        profit: totalAmount - totalCost,
+        type: pay.type,
+        amountPaid: pay.amountPaid,
+        creditBalance: pay.creditBalance,
+        payments: pay.payments,
         customerId: resolved.customerId,
-        saleId: sale._id,
-        ...debtFieldsFromSale(pay.creditBalance),
+        customerName: resolved.customerName,
+        note,
+        recordedBy: req.user?.email || "",
       });
+
+      if (pay.creditBalance > 0) {
+        await Debt.create({
+          customerId: resolved.customerId,
+          saleId: sale._id,
+          ...debtFieldsFromSale(pay.creditBalance),
+        });
+      }
+    } catch (err) {
+      await restoreStockFromNewSale(stock.deducted || []);
+      throw err;
     }
 
     markShopHasRealData();
@@ -315,13 +346,21 @@ router.post("/sales", async (req, res) => {
 });
 
 router.get("/sales", async (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 50, 100);
-  const items = await Sale.find()
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .populate("customerId");
+  const limit = Math.min(Number(req.query.limit) || 50, MAX_SALES_LIMIT);
+  const page = Math.max(Number(req.query.page || 1), 1);
+  const [items, total] = await Promise.all([
+    Sale.find()
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("customerId"),
+    Sale.countDocuments(),
+  ]);
   res.json({
     items: items.map((s) => formatInvoice(s, s.customerId)),
+    total,
+    page,
+    pages: Math.ceil(total / limit) || 1,
   });
 });
 
@@ -332,55 +371,88 @@ router.get("/sales/:id", async (req, res) => {
 });
 
 router.put("/sales/:id", async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
-  if (!sale) return res.status(404).json({ message: "Sale not found" });
+  try {
+    const sale = await Sale.findById(req.params.id);
+    if (!sale) return res.status(404).json({ message: "Sale not found" });
 
-  const { products, customerId, customerName, note, payments } = req.body;
+    const snapshot = {
+      products: sale.products,
+      totalAmount: sale.totalAmount,
+      totalCost: sale.totalCost,
+      profit: sale.profit,
+      type: sale.type,
+      amountPaid: sale.amountPaid,
+      creditBalance: sale.creditBalance,
+      payments: sale.payments,
+      customerId: sale.customerId,
+      customerName: sale.customerName,
+      note: sale.note,
+    };
 
-  const resolved = await resolveCustomer({ customerId, customerName });
-  if (resolved.error) return res.status(400).json({ message: resolved.error });
+    const { products, customerId, customerName, note, payments } = req.body;
 
-  const built = await buildSaleProductsFromInput(products);
-  if (built.error) return res.status(400).json({ message: built.error });
-  const { saleProducts, totalAmount, totalCost } = built;
+    const resolved = await resolveCustomer({ customerId, customerName });
+    if (resolved.error) return res.status(400).json({ message: resolved.error });
 
-  const pay = normalizePaymentsInput(payments, totalAmount);
-  if (pay.error) return res.status(400).json({ message: pay.error });
+    const built = await buildSaleProductsFromInput(products);
+    if (built.error) return res.status(400).json({ message: built.error });
+    const { saleProducts, totalAmount, totalCost } = built;
 
-  if (pay.creditBalance > 0 && !resolved.customerId) {
-    return res.status(400).json({
-      message: "Register the customer to record credit or partial payment",
-    });
+    const pay = normalizePaymentsInput(payments, totalAmount);
+    if (pay.error) return res.status(400).json({ message: pay.error });
+
+    if (pay.creditBalance > 0 && !resolved.customerId) {
+      return res.status(400).json({
+        message: "Register the customer to record credit or partial payment",
+      });
+    }
+
+    const existingDebt = await Debt.findOne({ saleId: sale._id });
+    if (existingDebt && pay.creditBalance > 0 && (existingDebt.amountPaid || 0) > pay.creditBalance) {
+      return res.status(400).json({
+        message: `Customer already paid ${existingDebt.amountPaid} on this invoice debt. New credit is ${pay.creditBalance}. Adjust on the Debts page first.`,
+      });
+    }
+
+    const stock = await applySaleStockChange(sale.products, products);
+    if (stock.error) return res.status(400).json({ message: stock.error });
+
+    sale.products = saleProducts;
+    sale.totalAmount = totalAmount;
+    sale.totalCost = totalCost;
+    sale.profit = totalAmount - totalCost;
+    sale.type = pay.type;
+    sale.amountPaid = pay.amountPaid;
+    sale.creditBalance = pay.creditBalance;
+    sale.payments = pay.payments;
+    sale.customerId = resolved.customerId;
+    sale.customerName = resolved.customerName;
+    if (note !== undefined) sale.note = note;
+    await sale.save();
+
+    const debtSync = await syncDebtForSale(sale, pay, resolved.customerId);
+    if (debtSync.error) {
+      const rollbackItems = snapshot.products.map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+      }));
+      await applySaleStockChange(sale.products, rollbackItems);
+      Object.assign(sale, snapshot);
+      await sale.save();
+      return res.status(400).json({ message: debtSync.error });
+    }
+
+    const linkedDebt = await Debt.findOne({ saleId: sale._id });
+    if (linkedDebt) {
+      await syncSaleFromDebt(linkedDebt);
+    }
+
+    const populated = await Sale.findById(sale._id).populate("customerId");
+    res.json(formatInvoice(populated, populated.customerId));
+  } catch (err) {
+    console.error("PUT /sales/:id failed:", err);
+    res.status(500).json({ message: err.message || "Failed to update sale" });
   }
-
-  const existingDebt = await Debt.findOne({ saleId: sale._id });
-  if (existingDebt && pay.creditBalance > 0 && (existingDebt.amountPaid || 0) > pay.creditBalance) {
-    return res.status(400).json({
-      message: `Customer already paid ${existingDebt.amountPaid} on this invoice debt. New credit is ${pay.creditBalance}. Adjust on the Debts page first.`,
-    });
-  }
-
-  const stock = await applySaleStockChange(sale.products, products);
-  if (stock.error) return res.status(400).json({ message: stock.error });
-
-  sale.products = saleProducts;
-  sale.totalAmount = totalAmount;
-  sale.totalCost = totalCost;
-  sale.profit = totalAmount - totalCost;
-  sale.type = pay.type;
-  sale.amountPaid = pay.amountPaid;
-  sale.creditBalance = pay.creditBalance;
-  sale.payments = pay.payments;
-  sale.customerId = resolved.customerId;
-  sale.customerName = resolved.customerName;
-  if (note !== undefined) sale.note = note;
-  await sale.save();
-
-  const debtSync = await syncDebtForSale(sale, pay, resolved.customerId);
-  if (debtSync.error) return res.status(400).json({ message: debtSync.error });
-
-  const populated = await Sale.findById(sale._id).populate("customerId");
-  res.json(formatInvoice(populated, populated.customerId));
 });
 
 router.delete("/sales/:id", async (req, res) => {
@@ -409,8 +481,70 @@ router.delete("/sales/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
-router.get("/debts", async (req, res) => res.json({ items: await Debt.find().populate("customerId").sort({ createdAt: -1 }) }));
-router.get("/debts/:id", async (req, res) => res.json(await Debt.findById(req.params.id).populate("customerId")));
+router.get("/debts", async (req, res) => {
+  const period = req.query.period || "all";
+  let filter = {};
+  let from;
+  let to;
+
+  if (period !== "all") {
+    ({ from, to } = buildDateRange({ period }));
+    const paymentDebtIds = await Payment.distinct("debtId", {
+      date: { $gte: from, $lte: to },
+    });
+    filter = {
+      $or: [
+        { createdAt: { $gte: from, $lte: to } },
+        { _id: { $in: paymentDebtIds } },
+      ],
+    };
+  }
+
+  const items = await Debt.find(filter)
+    .populate("customerId")
+    .populate("saleId", "invoiceNumber amountPaid totalAmount date")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  let paymentsByDebt = new Map();
+  if (period !== "all") {
+    const paymentRows = await Payment.aggregate([
+      { $match: { date: { $gte: from, $lte: to } } },
+      { $group: { _id: "$debtId", total: { $sum: "$amount" } } },
+    ]);
+    paymentsByDebt = new Map(paymentRows.map((r) => [String(r._id), r.total]));
+  }
+
+  const enriched = items.map((d) => {
+    if (period === "all") return d;
+
+    const sale = d.saleId;
+    let checkoutPaidInPeriod = 0;
+    if (sale?.date) {
+      const saleDate = new Date(sale.date);
+      if (saleDate >= from && saleDate <= to) {
+        checkoutPaidInPeriod = sale.amountPaid || 0;
+      }
+    }
+
+    return {
+      ...d,
+      paymentsInPeriod: paymentsByDebt.get(String(d._id)) || 0,
+      checkoutPaidInPeriod,
+    };
+  });
+
+  res.json({
+    items: enriched,
+    period,
+    ...(period !== "all" ? { from, to } : {}),
+  });
+});
+router.get("/debts/:id", async (req, res) => {
+  const debt = await Debt.findById(req.params.id).populate("customerId");
+  if (!debt) return res.status(404).json({ message: "Debt not found" });
+  res.json(debt);
+});
 
 router.delete("/debts/:id", async (req, res) => {
   const check = verifyDeletePassword(req);
@@ -429,7 +563,7 @@ router.delete("/debts/:id", async (req, res) => {
       sale.creditBalance = 0;
       if (paid >= total && total > 0) sale.type = "paid";
       else if (paid > 0) sale.type = "partial";
-      else sale.type = "paid";
+      else sale.type = "credit";
       await sale.save();
     }
   }
@@ -440,30 +574,64 @@ router.delete("/debts/:id", async (req, res) => {
 
 router.post("/payments", async (req, res) => {
   const { debtId, amount, method } = req.body;
-  const debt = await Debt.findById(debtId);
-  if (!debt) return res.status(404).json({ message: "Debt not found" });
-  debt.amountPaid += Number(amount);
-  debt.balance = Math.max(0, debt.totalAmount - debt.amountPaid);
-  debt.status = debtStatus(debt.balance, debt.totalAmount);
-  await debt.save();
-  const normalizedMethod = normalizePaymentMethod(method);
-  if (!["cash", "pos"].includes(normalizedMethod)) {
-    return res.status(400).json({ message: "Invalid payment method. Use cash or POS / transfer." });
+  const payAmount = Number(amount);
+  let updated = null;
+
+  try {
+    if (!payAmount || payAmount <= 0) {
+      return res.status(400).json({ message: "Enter a valid payment amount" });
+    }
+
+    const normalizedMethod = normalizePaymentMethod(method);
+    if (!["cash", "pos"].includes(normalizedMethod)) {
+      return res.status(400).json({ message: "Invalid payment method. Use cash or POS / transfer." });
+    }
+
+    updated = await Debt.findOneAndUpdate(
+      { _id: debtId, balance: { $gte: payAmount } },
+      [{ $set: { amountPaid: { $add: [{ $ifNull: ["$amountPaid", 0] }, payAmount] } } }],
+      { new: true },
+    );
+    if (!updated) {
+      const debt = await Debt.findById(debtId);
+      if (!debt) return res.status(404).json({ message: "Debt not found" });
+      return res.status(400).json({ message: "Payment cannot exceed the outstanding balance" });
+    }
+
+    updated.balance = Math.max(0, updated.totalAmount - updated.amountPaid);
+    updated.status = debtStatus(updated.balance, updated.totalAmount);
+    await updated.save();
+
+    const payment = await Payment.create({
+      debtId,
+      customerId: updated.customerId,
+      amount: payAmount,
+      method: normalizedMethod,
+    });
+
+    await syncSaleFromDebt(updated);
+    res.status(201).json({ payment, debt: updated });
+  } catch (err) {
+    if (updated) {
+      await Debt.findByIdAndUpdate(debtId, { $inc: { amountPaid: -payAmount } });
+      const reverted = await Debt.findById(debtId);
+      if (reverted) {
+        reverted.balance = Math.max(0, reverted.totalAmount - reverted.amountPaid);
+        reverted.status = debtStatus(reverted.balance, reverted.totalAmount);
+        await reverted.save();
+        await syncSaleFromDebt(reverted);
+      }
+    }
+    console.error("POST /payments failed:", err);
+    res.status(500).json({ message: err.message || "Failed to record payment" });
   }
-  const payment = await Payment.create({
-    debtId,
-    customerId: debt.customerId,
-    amount,
-    method: normalizedMethod,
-  });
-  res.status(201).json({ payment, debt });
 });
 router.get("/payments", async (req, res) => res.json({ items: await Payment.find().sort({ createdAt: -1 }) }));
 
 router.get("/reports/dashboard", async (_req, res) => {
   const [totalProducts, lowStock, products, todaySales, debtTotals, paymentTotals] = await Promise.all([
     Product.countDocuments(),
-    Product.countDocuments({ quantity: { $lte: 5 } }),
+    Product.countDocuments({ quantity: { $lte: LOW_STOCK_THRESHOLD } }),
     Product.find(),
     Sale.aggregate([{ $match: { date: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }, { $group: { _id: null, total: { $sum: "$totalAmount" } } }]),
     Debt.aggregate([{ $group: { _id: null, total: { $sum: "$balance" } } }]),
@@ -492,7 +660,7 @@ router.get("/reports/detailed", async (req, res) => {
   const { from, to } = buildDateRange(req.query);
   const report = await buildFinancialReport(from, to);
   res.json({
-    period: req.query.period || "month",
+    period: req.query.period || "today",
     from,
     to,
     ...report,
@@ -500,16 +668,42 @@ router.get("/reports/detailed", async (req, res) => {
   });
 });
 
+router.get("/reports/products/:productId/history", async (req, res) => {
+  try {
+    let from;
+    let to;
+    if (req.query.scope === "period" && (req.query.period || (req.query.from && req.query.to))) {
+      ({ from, to } = buildDateRange(req.query));
+    }
+    const result = await buildProductSalesHistory(req.params.productId, { from, to });
+    if (result.error) {
+      return res.status(result.error === "Product not found" ? 404 : 400).json({
+        message: result.error,
+      });
+    }
+    res.json(result);
+  } catch (err) {
+    console.error("GET /reports/products/:productId/history failed:", err);
+    res.status(500).json({ message: err.message || "Failed to load product history" });
+  }
+});
+
 router.get("/reports/export", async (req, res) => {
-  const period = req.query.period || "daily";
-  const format = period === "monthly" ? "%Y-%m" : period === "weekly" ? "%Y-%U" : "%Y-%m-%d";
+  const periodKey = req.query.period || "daily";
+  const { from, to } = buildDateRange({
+    period: periodKey === "monthly" ? "month" : periodKey === "weekly" ? "week" : "today",
+    from: req.query.from,
+    to: req.query.to,
+  });
+  const format = periodKey === "monthly" ? "%Y-%m" : periodKey === "weekly" ? "%Y-%U" : "%Y-%m-%d";
   const rows = await Sale.aggregate([
+    { $match: { date: { $gte: from, $lte: to } } },
     { $group: { _id: { $dateToString: { format, date: "$date" } }, sales: { $sum: "$totalAmount" }, profit: { $sum: "$profit" } } },
     { $sort: { _id: 1 } },
   ]);
   const csv = stringify(rows, { header: true, columns: ["_id", "sales", "profit"] });
   res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", `attachment; filename="${period}-report.csv"`);
+  res.setHeader("Content-Disposition", `attachment; filename="${periodKey}-report.csv"`);
   res.send(csv);
 });
 

@@ -42,6 +42,7 @@ const saleSchema = new mongoose.Schema(
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer" },
     customerName: String,
     note: String,
+    recordedBy: String,
     date: { type: Date, default: Date.now },
   },
   { timestamps: true }

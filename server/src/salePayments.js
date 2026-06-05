@@ -13,7 +13,7 @@ export function normalizePaymentsInput(rows, totalAmount) {
   const payments = (rows || [])
     .map((p) => ({
       method: normalizePaymentMethod(p.method),
-      amount: Math.round(Number(p.amount) || 0),
+      amount: Number(p.amount) || 0,
     }))
     .filter((p) => p.amount > 0);
 

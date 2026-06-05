@@ -39,7 +39,7 @@ export default function PasswordDeleteDialog({
     >
       <form
         onSubmit={submit}
-        className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
+        className="w-full max-w-md glass-panel-strong p-5 shadow-xl sm:rounded-2xl rounded-t-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-semibold text-slate-900">{title}</h3>

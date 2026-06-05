@@ -17,6 +17,16 @@ export function formatDate(iso) {
   }).format(new Date(iso))
 }
 
+/** Date only — no time (reports tables). */
+export function formatDateOnly(iso) {
+  if (!iso) return '—'
+  return new Intl.DateTimeFormat('en-NG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(iso))
+}
+
 /** Date + time for thermal receipt header (right-aligned block). */
 export function formatReceiptMetaDate(iso) {
   if (!iso) return { date: '—', time: '' }

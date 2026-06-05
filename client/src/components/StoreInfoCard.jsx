@@ -3,7 +3,7 @@ import StoreBranding from './StoreBranding'
 export default function StoreInfoCard({ compact = false }) {
   return (
     <section
-      className={`rounded-xl border border-slate-200 bg-white text-center shadow-sm ${
+      className={`glass-panel text-center ${
         compact ? 'p-4' : 'p-6 sm:p-8'
       }`}
     >

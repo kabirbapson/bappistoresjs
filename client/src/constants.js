@@ -40,8 +40,16 @@ export const LOW_STOCK_THRESHOLD = 50
 
 export const PRODUCT_CATEGORY = 'Beverages'
 
-/** Quick quantity buttons for bulk sales (units). */
-export const QUICK_QUANTITIES = [10, 50, 100, 200, 500, 1000]
+/** Add-to-qty buttons on the sales cart (100, 200, 500). */
+export const QUICK_QTY_INCREMENTS = [100, 200, 500]
+
+/** Checkout payment mode — must pick one before recording a sale. */
+export const SALE_PAYMENT_MODES = [
+  { id: 'cash', label: 'Cash', apiMethod: 'cash', tone: 'emerald' },
+  { id: 'transfer', label: 'Transfer', apiMethod: 'pos', tone: 'sky' },
+  { id: 'pos', label: 'POS', apiMethod: 'pos', tone: 'violet' },
+  { id: 'credit', label: 'Credit', apiMethod: null, tone: 'amber' },
+]
 
 export const PAYMENT_METHODS = ['cash', 'pos']
 
@@ -54,6 +62,14 @@ export const PAYMENT_METHOD_LABELS = {
 export function paymentMethodLabel(method) {
   return PAYMENT_METHOD_LABELS[method] || method || '—'
 }
+
+/** Product sales history dialog — date filters (server period keys). */
+export const PRODUCT_HISTORY_SCOPES = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'week', label: 'Last 7 days' },
+  { value: 'lastMonth', label: 'Last month' },
+]
 
 export const SALE_TYPE_LABELS = {
   paid: 'Paid in full',

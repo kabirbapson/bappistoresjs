@@ -3,12 +3,14 @@ import api from '../api'
 
 export const WALK_IN = '__walkin__'
 
-function Field({ label, htmlFor, children, className = '' }) {
+function Field({ label, htmlFor, children, className = '', compact = false, hideLabel = false }) {
   return (
     <div className={`flex min-w-0 flex-col ${className}`}>
       <label
         htmlFor={htmlFor}
-        className="mb-1 block text-sm font-medium leading-5 text-slate-600"
+        className={`block font-medium leading-5 text-slate-600 ${
+          hideLabel ? 'sr-only' : compact ? 'mb-0.5 text-sm' : 'mb-1 text-sm'
+        }`}
       >
         {label}
       </label>
@@ -23,6 +25,7 @@ export default function CustomerPicker({
   note = '',
   onNoteChange,
   compact = false,
+  inline = false,
 }) {
   const { customerPick, walkInName } = value
   const isWalkIn = customerPick === WALK_IN
@@ -35,8 +38,8 @@ export default function CustomerPicker({
   const [listOpen, setListOpen] = useState(false)
   const wrapRef = useRef(null)
 
-  const controlH = compact ? 'h-10' : 'h-11'
-  const inputClass = `w-full rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${controlH}`
+  const controlH = inline ? 'h-8' : compact ? 'h-9' : 'h-11'
+  const inputClass = `glass-input w-full px-3 text-slate-900 placeholder:text-slate-400 ${compact || inline ? 'text-sm' : 'text-base'} ${controlH}`
 
   const syncSelected = useCallback(async () => {
     if (isWalkIn || !customerPick) {
@@ -126,70 +129,132 @@ export default function CustomerPicker({
   const noteId = 'sale-note'
 
   return (
-    <div ref={wrapRef} className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-sm font-semibold text-slate-800">Customer</span>
-        <div
-          className="inline-flex w-full rounded-lg border border-slate-200 bg-slate-100 p-0.5 sm:w-auto sm:min-w-[220px]"
-          role="group"
-          aria-label="Customer type"
-        >
-          <button
-            type="button"
-            onClick={pickRegistered}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${
-              mode === 'registered'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+    <div ref={wrapRef} className={compact ? (inline ? 'space-y-0' : 'space-y-2') : 'space-y-3'}>
+      {!inline && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span className={`font-semibold text-slate-800 ${compact ? 'text-sm' : 'text-sm'}`}>
+            Customer
+          </span>
+          <div
+            className={`inline-flex w-full rounded-lg border border-slate-200 bg-slate-100 p-0.5 sm:w-auto ${compact ? 'sm:min-w-[180px]' : 'sm:min-w-[220px]'}`}
+            role="group"
+            aria-label="Customer type"
           >
-            Registered
-          </button>
-          <button
-            type="button"
-            onClick={pickWalkIn}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:flex-none sm:px-4 ${
-              mode === 'walkin'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Walk-in
-          </button>
+            <button
+              type="button"
+              onClick={pickRegistered}
+              className={`flex-1 rounded-md font-medium transition-colors sm:flex-none ${
+                compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm sm:px-4'
+              } ${
+                mode === 'registered'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Registered
+            </button>
+            <button
+              type="button"
+              onClick={pickWalkIn}
+              className={`flex-1 rounded-md font-medium transition-colors sm:flex-none ${
+                compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm sm:px-4'
+              } ${
+                mode === 'walkin'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Walk-in
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
+      <div
+        className={
+          inline
+            ? 'flex flex-wrap items-end gap-2'
+            : `grid items-end gap-2 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 gap-3 sm:grid-cols-2'}`
+        }
+      >
+        {inline && (
+          <div
+            className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-slate-100 p-0.5"
+            role="group"
+            aria-label="Customer type"
+          >
+            <button
+              type="button"
+              onClick={pickRegistered}
+              className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                mode === 'registered'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Reg
+            </button>
+            <button
+              type="button"
+              onClick={pickWalkIn}
+              className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                mode === 'walkin'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Walk-in
+            </button>
+          </div>
+        )}
         {mode === 'walkin' ? (
-          <Field label="Customer name *" htmlFor={walkInId}>
+          <Field
+            label={inline ? 'Name *' : 'Customer name *'}
+            htmlFor={walkInId}
+            compact={compact || inline}
+            hideLabel={inline}
+            className={inline ? 'min-w-[8rem] flex-1' : ''}
+          >
             <input
               id={walkInId}
               className={inputClass}
               value={walkInName}
               onChange={(e) => onChange({ customerPick: WALK_IN, walkInName: e.target.value })}
-              placeholder="Enter name"
+              placeholder={inline ? 'Customer name' : 'Enter name'}
               required
             />
           </Field>
         ) : (
-          <Field label="Find customer" htmlFor={selected ? undefined : searchId}>
+          <Field
+            label={inline ? 'Customer' : 'Find customer'}
+            htmlFor={selected ? undefined : searchId}
+            compact={compact || inline}
+            hideLabel={inline}
+            className={inline ? 'min-w-[8rem] flex-1' : ''}
+          >
             <div className="relative">
               {selected ? (
                 <div
-                  className={`flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 ${controlH}`}
+                  className={`flex items-center gap-2 rounded-lg border-2 border-emerald-300 bg-emerald-50 px-2.5 ${
+                    compact ? 'py-1.5' : 'py-2.5'
+                  }`}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-900">
+                    <p className={`font-bold leading-snug text-slate-900 ${compact ? 'text-sm' : 'text-base'}`}>
                       {selected.name}
                     </p>
                     {selected.phone && (
-                      <p className="truncate text-xs text-slate-600">{selected.phone}</p>
+                      <p className={`font-medium tabular-nums text-slate-700 ${compact ? 'text-xs' : 'text-sm'}`}>
+                        {selected.phone}
+                      </p>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={clearRegistered}
-                    className="shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    className={`shrink-0 rounded-lg border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 ${
+                      compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'
+                    }`}
                   >
                     Change
                   </button>
@@ -245,13 +310,13 @@ export default function CustomerPicker({
         )}
 
         {onNoteChange && (
-          <Field label="Note" htmlFor={noteId}>
+          <Field label="Note" htmlFor={noteId} compact={compact || inline} hideLabel={inline} className={inline ? 'min-w-[6rem] flex-1' : ''}>
             <input
               id={noteId}
               className={inputClass}
               value={note}
               onChange={(e) => onNoteChange(e.target.value)}
-              placeholder="Optional"
+              placeholder="Note (optional)"
             />
           </Field>
         )}

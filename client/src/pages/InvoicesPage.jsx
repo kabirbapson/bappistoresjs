@@ -14,31 +14,35 @@ import { deleteWithPassword } from '../utils/secureDelete'
 export default function InvoicesPage() {
 
   const [sales, setSales] = useState([])
-
+  const [salesTotal, setSalesTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [query, setQuery] = useState('')
-
   const [preview, setPreview] = useState(null)
-
   const [loading, setLoading] = useState(true)
-
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
 
-
-
-  const load = useCallback(() => {
-
-    setLoading(true)
+  const load = useCallback((pageNum = 1, append = false) => {
+    if (append) setLoadingMore(true)
+    else setLoading(true)
 
     api
-
-      .get('/sales?limit=100')
-
-      .then((r) => setSales(r.data.items))
-
-      .finally(() => setLoading(false))
-
+      .get(`/sales?limit=100&page=${pageNum}`)
+      .then((r) => {
+        const items = r.data.items || []
+        setSales((prev) => (append ? [...prev, ...items] : items))
+        setSalesTotal(r.data.total ?? items.length)
+        setPage(pageNum)
+        setHasMore(pageNum < (r.data.pages || 1))
+      })
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load invoices'))
+      .finally(() => {
+        setLoading(false)
+        setLoadingMore(false)
+      })
   }, [])
 
 
@@ -90,15 +94,12 @@ export default function InvoicesPage() {
     setLoadingPreview(true)
 
     try {
-
       const { data } = await api.get(`/sales/${id}`)
-
       setPreview(data)
-
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not load invoice')
     } finally {
-
       setLoadingPreview(false)
-
     }
 
   }
@@ -125,7 +126,7 @@ export default function InvoicesPage() {
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
 
-        <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="glass-panel shrink-0 p-4">
 
           <label className="block text-base">
 
@@ -133,7 +134,7 @@ export default function InvoicesPage() {
 
             <input
 
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-base focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              className="glass-input w-full p-2.5 text-base"
 
               placeholder="Invoice # or customer…"
 
@@ -155,7 +156,7 @@ export default function InvoicesPage() {
 
         ) : (
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden">
 
             <div className="min-h-0 flex-1 overflow-y-auto">
 
@@ -177,7 +178,7 @@ export default function InvoicesPage() {
 
                 <thead className="sticky top-0 z-10">
 
-                  <tr className="bg-gradient-to-r from-slate-800 to-slate-700 text-xs uppercase tracking-wide text-white sm:text-sm">
+                  <tr className="glass-table-head text-xs uppercase tracking-wide text-white sm:text-sm">
 
                     <th className="p-2 text-left font-semibold sm:p-2.5">Invoice</th>
 
@@ -211,7 +212,7 @@ export default function InvoicesPage() {
 
                           active
 
-                            ? 'bg-emerald-50 ring-2 ring-inset ring-emerald-300'
+                            ? 'bg-emerald-50 ring-2 ring-inset ring-emerald-200'
 
                             : index % 2 === 0
 
@@ -321,6 +322,24 @@ export default function InvoicesPage() {
               )}
 
             </div>
+
+            {(hasMore || salesTotal > sales.length) && !query && (
+              <div className="shrink-0 border-t border-slate-100 p-3 text-center">
+                <p className="mb-2 text-xs text-slate-500">
+                  Showing {sales.length} of {salesTotal} invoices
+                </p>
+                {hasMore && (
+                  <button
+                    type="button"
+                    disabled={loadingMore}
+                    onClick={() => load(page + 1, true)}
+                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {loadingMore ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
+              </div>
+            )}
 
           </div>
 

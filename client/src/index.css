@@ -6,6 +6,60 @@ body {
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
+@layer components {
+  .app-shell-bg {
+    @apply bg-slate-100;
+  }
+
+  .glass-panel {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .glass-panel-strong {
+    @apply rounded-xl border border-slate-200 bg-white shadow-md;
+  }
+
+  .glass-sidebar {
+    @apply rounded-xl border border-slate-700 bg-slate-800 shadow-md;
+  }
+
+  .glass-inset {
+    @apply rounded-lg border border-slate-200 bg-slate-50;
+  }
+
+  .glass-input {
+    @apply rounded-lg border border-slate-200 bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20;
+  }
+
+  .glass-banner {
+    @apply rounded-xl border border-slate-200 bg-slate-50;
+  }
+
+  .glass-banner-dark {
+    @apply rounded-xl border border-slate-700 bg-slate-800 text-white shadow-sm;
+  }
+
+  .glass-stat-emerald {
+    @apply rounded-xl border border-emerald-100 bg-emerald-50 shadow-sm;
+  }
+
+  .glass-stat-amber {
+    @apply rounded-xl border border-amber-100 bg-amber-50 shadow-sm;
+  }
+
+  .glass-stat-rose {
+    @apply rounded-xl border border-rose-100 bg-rose-50 shadow-sm;
+  }
+
+  .glass-stat-slate {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .glass-table-head {
+    @apply bg-slate-700 text-white;
+  }
+}
+
 /* Thermal receipt — default 80mm (Xprinter XP-80T); switch via html[data-receipt-mm] */
 .thermal-receipt {
   max-width: 80mm;

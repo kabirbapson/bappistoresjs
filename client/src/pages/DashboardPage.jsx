@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
@@ -17,12 +18,12 @@ const QUICK_LINKS = [
 ]
 
 const CARD_STYLES = {
-  dailySales: 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white',
-  outstandingDebt: 'border-rose-200 bg-gradient-to-br from-rose-50 to-white',
-  totalProducts: 'border-slate-200 bg-white',
-  lowStockAlerts: 'border-amber-200 bg-gradient-to-br from-amber-50 to-white',
-  totalStockValue: 'border-sky-200 bg-gradient-to-br from-sky-50/80 to-white',
-  totalPaymentsReceived: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50/60 to-white',
+  dailySales: 'glass-stat-emerald',
+  outstandingDebt: 'glass-stat-rose',
+  totalProducts: 'glass-stat-slate',
+  lowStockAlerts: 'glass-stat-amber',
+  totalStockValue: 'glass-panel border-sky-200 bg-sky-50',
+  totalPaymentsReceived: 'glass-stat-emerald',
 }
 
 const CARD_ORDER = [
@@ -46,7 +47,7 @@ const CARD_LINKS = {
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-lg">
+    <div className="glass-panel-strong px-3 py-2 text-sm">
       <p className="font-medium text-slate-700">{label}</p>
       <p className="font-semibold text-emerald-700">{formatNaira(payload[0].value)}</p>
     </div>
@@ -57,7 +58,7 @@ function StatCard({ to, label, value, className = '' }) {
   return (
     <Link
       to={to}
-      className={`block rounded-xl border px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${className}`}
+      className={`block rounded-xl px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${className}`}
     >
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-1 text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">{value}</p>
@@ -67,7 +68,7 @@ function StatCard({ to, label, value, className = '' }) {
 
 function StatCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <div className="glass-panel animate-pulse px-4 py-3">
       <div className="h-3 w-20 rounded bg-slate-200" />
       <div className="mt-3 h-7 w-24 rounded bg-slate-200" />
     </div>
@@ -83,7 +84,10 @@ export default function DashboardPage() {
     api
       .get('/reports/dashboard')
       .then((res) => setStats(res.data))
-      .catch(() => setStats(null))
+      .catch((err) => {
+        setStats(null)
+        toast.error(err.response?.data?.message || 'Could not load dashboard')
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -100,7 +104,7 @@ export default function DashboardPage() {
       header={
         <div className="space-y-3">
           <PageHeader title="Dashboard" subtitle={today} />
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-900 p-4 shadow-sm sm:p-5">
+          <div className="glass-banner-dark overflow-hidden p-4 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <div className="shrink-0 rounded-lg bg-white p-2 shadow-sm">
@@ -118,7 +122,7 @@ export default function DashboardPage() {
                     className={
                       primary
                         ? 'rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-400'
-                        : 'rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white backdrop-blur hover:bg-white/20'
+                        : 'rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600'
                     }
                   >
                     {label}
@@ -138,7 +142,7 @@ export default function DashboardPage() {
                 <StatCardSkeleton key={i} />
               ))}
             </div>
-            <div className="flex min-h-0 flex-1 animate-pulse flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="glass-panel flex min-h-0 flex-1 animate-pulse flex-col p-4">
               <div className="h-4 w-40 rounded bg-slate-200" />
               <div className="mt-4 min-h-0 flex-1 rounded-lg bg-slate-100" />
             </div>
@@ -165,12 +169,12 @@ export default function DashboardPage() {
                   to={CARD_LINKS[key]}
                   label={DASHBOARD_LABELS[key] || key}
                   value={formatDashboardValue(key, stats.cards?.[key])}
-                  className={CARD_STYLES[key] || 'border-slate-200 bg-white'}
+                  className={CARD_STYLES[key] || 'glass-stat-slate'}
                 />
               ))}
             </div>
 
-            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <section className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
               <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-2 border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Sales trend</h2>
@@ -208,7 +212,7 @@ export default function DashboardPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/50 text-center">
+                  <div className="glass-inset flex h-full flex-col items-center justify-center border-dashed text-center">
                     <p className="text-3xl">📊</p>
                     <p className="mt-2 font-medium text-slate-700">No sales in this period yet</p>
                     <p className="mt-1 text-sm text-slate-500">Record a sale to see the chart fill in</p>

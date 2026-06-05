@@ -8,7 +8,7 @@ export default function LoginPage() {
   const login = useAuthStore((s) => s.login)
   const token = useAuthStore((s) => s.token)
   const loading = useAuthStore((s) => s.loading)
-  const [form, setForm] = useState({ email: 'admin@bappi.com', password: 'admin123' })
+  const [form, setForm] = useState({ email: '', password: '' })
 
   if (token) return <Navigate to="/" replace />
 
@@ -23,10 +23,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+    <div className="app-shell-bg flex min-h-screen items-center justify-center p-4">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow-lg"
+        className="glass-panel-strong w-full max-w-sm space-y-4 p-6"
       >
         <StoreBranding
           showLogo
@@ -41,7 +41,7 @@ export default function LoginPage() {
           <span className="mb-1 block text-slate-600">Email</span>
           <input
             type="email"
-            className="w-full rounded-lg border border-slate-200 p-2.5"
+            className="w-full glass-input p-2.5"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
@@ -51,7 +51,7 @@ export default function LoginPage() {
           <span className="mb-1 block text-slate-600">Password</span>
           <input
             type="password"
-            className="w-full rounded-lg border border-slate-200 p-2.5"
+            className="w-full glass-input p-2.5"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required

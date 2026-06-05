@@ -1,88 +1,203 @@
 import NumericInput from './NumericInput'
 import ProductAvatar from './ProductAvatar'
-import { QUICK_QUANTITIES } from '../constants'
+import { QUICK_QTY_INCREMENTS } from '../constants'
 import { formatNaira } from '../utils/format'
+
+function PriceField({ value, listPrice, onChange, large = false, compact = false }) {
+  const size = compact ? 'h-7' : large ? 'h-11' : 'h-9'
+  return (
+    <div
+      className={`inline-flex items-center rounded-lg border border-slate-200 bg-white focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-500/20 ${size}`}
+    >
+      <span className={`pl-2 font-medium text-slate-400 ${compact ? 'text-[10px]' : large ? 'text-sm' : 'text-xs'}`}>₦</span>
+      <NumericInput
+        allowEmpty={false}
+        value={value}
+        onChange={(v) => onChange(v === '' ? listPrice : v)}
+        className={`border-0 bg-transparent pr-2 text-right font-semibold tabular-nums focus:outline-none focus:ring-0 ${
+          compact ? 'w-[4.25rem] text-xs' : large ? 'w-[5.5rem] text-lg' : 'w-[5.5rem] text-sm'
+        }`}
+      />
+    </div>
+  )
+}
 
 export default function SaleCartRow({
   lines,
   products,
   onUpdateQty,
+  onAddQty,
   onUpdatePrice,
   onRemove,
   compact = false,
+  maxQtyForProduct,
 }) {
   if (lines.length === 0) {
     return (
-      <p
-        className={`rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-slate-500 ${
-          compact ? 'px-3 py-4 text-sm' : 'px-4 py-6 text-sm'
-        }`}
-      >
-        Tap products on the right to add
-      </p>
+      <div className="flex min-h-[3rem] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 py-3 text-center">
+        <p className="text-sm font-semibold text-slate-700">Cart is empty</p>
+        <p className="mt-0.5 text-xs text-slate-500">Tap products to add</p>
+      </div>
     )
   }
 
-  const cardW = compact ? 'w-[180px]' : 'w-[200px]'
-  const avatarH = compact ? 'h-12' : 'h-14'
-  const btnSize = compact ? 'h-9 w-9 text-lg' : 'h-9 w-9 text-sm'
-  const inputH = compact ? 'h-9 text-base font-bold' : 'h-9 text-sm'
+  const stockMax = (line) => {
+    if (maxQtyForProduct) return maxQtyForProduct(line.productId)
+    const product = products.find((p) => p._id === line.productId)
+    return product?.quantity ?? 0
+  }
+
+  const bumpQty = (line, add) => {
+    if (onAddQty) {
+      onAddQty(line.productId, add)
+      return
+    }
+    const max = stockMax(line)
+    onUpdateQty(line.productId, Math.min(max, line.quantity + add))
+  }
+
+  if (compact) {
+    return (
+      <div className="w-full min-w-0 overflow-x-auto overflow-y-hidden pb-1">
+        <div className="inline-flex gap-3">
+          {lines.map((line) => {
+            const product = products.find((p) => p._id === line.productId)
+            const name = product?.name || line.productName || 'Product'
+            const listPrice = product?.sellingPrice ?? line.unitPrice ?? 0
+            const unitPrice = line.unitPrice != null ? line.unitPrice : listPrice
+            const lineTotal = unitPrice * line.quantity
+            const hasDiscount = unitPrice < listPrice
+            const maxQty = stockMax(line)
+
+            return (
+              <article
+                key={line.productId}
+                className="flex w-44 shrink-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div className="relative mx-auto shrink-0">
+                  {product ? (
+                    <ProductAvatar product={product} className="h-14 w-14 rounded-lg ring-1 ring-slate-100" />
+                  ) : (
+                    <div className="h-14 w-14 rounded-lg bg-slate-100" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onRemove(line.productId)}
+                    className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-sm text-slate-400 shadow ring-1 ring-slate-200 hover:bg-rose-50 hover:text-rose-600"
+                    aria-label={`Remove ${name}`}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <h3
+                  className="mt-2 line-clamp-2 min-h-[2.75rem] text-center text-base font-extrabold leading-snug text-slate-950"
+                  title={name}
+                >
+                  {name}
+                </h3>
+
+                <div className="mt-2 flex justify-center">
+                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50">
+                    <button
+                      type="button"
+                      onClick={() => onUpdateQty(line.productId, line.quantity - 1)}
+                      className="flex h-9 w-9 items-center justify-center text-lg font-bold text-slate-600 hover:bg-white"
+                      aria-label="Decrease"
+                    >
+                      −
+                    </button>
+                    <NumericInput
+                      allowEmpty={false}
+                      value={line.quantity}
+                      onChange={(v) => onUpdateQty(line.productId, v === '' ? 1 : v)}
+                      className="h-9 w-12 border-x border-slate-200 bg-white text-center text-base font-bold focus:outline-none focus:ring-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onUpdateQty(line.productId, line.quantity + 1)}
+                      disabled={line.quantity >= maxQty}
+                      className="flex h-9 w-9 items-center justify-center text-lg font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+                      aria-label="Increase"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 grid grid-cols-3 gap-1">
+                  {QUICK_QTY_INCREMENTS.map((add) => (
+                    <button
+                      key={add}
+                      type="button"
+                      onClick={() => bumpQty(line, add)}
+                      disabled={line.quantity >= maxQty}
+                      className="rounded-md border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-40"
+                    >
+                      {add}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-bold uppercase text-slate-500">Rate</span>
+                    <PriceField
+                      value={unitPrice}
+                      listPrice={listPrice}
+                      onChange={(v) => onUpdatePrice?.(line.productId, v)}
+                    />
+                  </div>
+                  {hasDiscount && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdatePrice?.(line.productId, listPrice)}
+                      className="block w-full text-center text-xs font-medium text-emerald-700 hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <div className="flex items-center justify-between gap-1 rounded-lg bg-emerald-50 px-2.5 py-2 ring-1 ring-emerald-100">
+                    <span className="text-xs font-bold uppercase text-emerald-700">Total</span>
+                    <p className="text-base font-bold tabular-nums text-emerald-800">{formatNaira(lineTotal)}</p>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="-mx-0.5 overflow-x-auto px-0.5 pb-0.5">
-      <div className={`flex min-w-min ${compact ? 'gap-2' : 'gap-3'}`}>
+      <div className="flex min-w-min gap-3">
         {lines.map((line) => {
           const product = products.find((p) => p._id === line.productId)
           if (!product) return null
           const listPrice = product.sellingPrice
           const unitPrice = line.unitPrice != null ? line.unitPrice : listPrice
           const lineTotal = unitPrice * line.quantity
-          const hasDiscount = unitPrice < listPrice
-          const quickQty = QUICK_QUANTITIES.filter((q) => q <= product.quantity)
+          const maxQty = stockMax(line)
 
           return (
             <article
               key={line.productId}
-              className={`flex ${cardW} shrink-0 flex-col rounded-lg border border-emerald-200 bg-white shadow-sm ${
-                compact ? 'p-2' : 'p-2'
-              }`}
+              className="flex w-[200px] shrink-0 flex-col rounded-lg border border-emerald-100 bg-white p-2 shadow-sm"
             >
-              <ProductAvatar product={product} className={`${avatarH} w-full rounded-md`} />
-              <p
-                className={`line-clamp-2 font-semibold leading-tight text-slate-900 ${
-                  compact ? 'mt-1 text-sm' : 'mt-2 text-xs'
-                }`}
-              >
-                {product.name}
-              </p>
-              <label className={`block ${compact ? 'mt-1' : 'mt-2'}`}>
-                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                  Sale price
-                </span>
-                <NumericInput
-                  allowEmpty={false}
-                  value={unitPrice}
-                  onChange={(v) => onUpdatePrice?.(line.productId, v === '' ? listPrice : v)}
-                  className={`mt-0.5 w-full rounded border bg-white px-1.5 text-center font-semibold tabular-nums text-slate-900 ${
-                    compact ? 'h-8 text-sm' : 'h-9 text-sm'
-                  }`}
-                />
-              </label>
-              {hasDiscount ? (
-                <p className="text-center text-[10px] text-slate-500">
-                  List {formatNaira(listPrice)}
-                  <span className="mx-1 text-amber-700">−{formatNaira(listPrice - unitPrice)}</span>
-                </p>
-              ) : (
-                <p className="text-center text-[10px] text-slate-500">List {formatNaira(listPrice)}</p>
-              )}
-
-              <div className={`flex items-center gap-0.5 ${compact ? 'mt-1' : 'mt-2'}`}>
+              <ProductAvatar product={product} className="h-14 w-full rounded-md" />
+              <p className="mt-2 line-clamp-2 text-xs font-semibold text-slate-900">{product.name}</p>
+              <PriceField
+                value={unitPrice}
+                listPrice={listPrice}
+                onChange={(v) => onUpdatePrice?.(line.productId, v)}
+              />
+              <div className="mt-2 flex items-center gap-0.5">
                 <button
                   type="button"
                   onClick={() => onUpdateQty(line.productId, line.quantity - 1)}
-                  className={`flex shrink-0 items-center justify-center rounded border bg-slate-50 font-bold ${btnSize}`}
-                  aria-label="Decrease"
+                  className="flex h-9 w-9 items-center justify-center rounded border bg-slate-50 font-bold"
                 >
                   −
                 </button>
@@ -90,43 +205,34 @@ export default function SaleCartRow({
                   allowEmpty={false}
                   value={line.quantity}
                   onChange={(v) => onUpdateQty(line.productId, v === '' ? 1 : v)}
-                  className={`w-full min-w-[2.5rem] rounded border bg-white px-0.5 text-center font-bold ${inputH}`}
+                  className="h-9 w-full rounded border text-center text-sm font-bold"
                 />
                 <button
                   type="button"
                   onClick={() => onUpdateQty(line.productId, line.quantity + 1)}
-                  disabled={line.quantity >= product.quantity}
-                  className={`flex shrink-0 items-center justify-center rounded border bg-slate-50 font-bold disabled:opacity-40 ${btnSize}`}
-                  aria-label="Increase"
+                  disabled={line.quantity >= maxQty}
+                  className="flex h-9 w-9 items-center justify-center rounded border bg-slate-50 font-bold disabled:opacity-40"
                 >
                   +
                 </button>
               </div>
-
-              <div className={`flex flex-wrap justify-center gap-0.5 ${compact ? 'mt-1' : 'mt-1.5'}`}>
-                {(compact ? quickQty.slice(0, 4) : quickQty).map((q) => (
+              <div className="mt-1.5 flex flex-nowrap gap-1">
+                {QUICK_QTY_INCREMENTS.map((add) => (
                   <button
-                    key={q}
+                    key={add}
                     type="button"
-                    onClick={() => onUpdateQty(line.productId, q)}
-                    className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50"
+                    onClick={() => bumpQty(line, add)}
+                    className="rounded border px-1.5 py-0.5 text-xs font-semibold"
                   >
-                    {q}
+                    {add}
                   </button>
                 ))}
               </div>
-
-              <p
-                className={`text-center font-bold text-emerald-800 ${
-                  compact ? 'mt-1.5 text-base' : 'mt-2 text-xs'
-                }`}
-              >
-                {formatNaira(lineTotal)}
-              </p>
+              <p className="mt-2 text-center text-xs font-bold text-emerald-800">{formatNaira(lineTotal)}</p>
               <button
                 type="button"
                 onClick={() => onRemove(line.productId)}
-                className="text-center text-xs text-rose-600 hover:underline"
+                className="text-xs text-rose-600 hover:underline"
               >
                 Remove
               </button>

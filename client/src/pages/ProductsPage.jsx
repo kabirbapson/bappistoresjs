@@ -65,7 +65,7 @@ function FilterPill({ active, count, label, tone, onClick }) {
 
 function StatCard({ label, value, sub, className = '' }) {
   return (
-    <div className={`rounded-xl border px-4 py-3 shadow-sm ${className}`}>
+    <div className={`glass-panel px-4 py-3 ${className}`}>
       <p className="text-sm font-medium uppercase tracking-wide opacity-70">{label}</p>
       <p className="mt-0.5 text-3xl font-bold tabular-nums">{value}</p>
       {sub && <p className="mt-0.5 text-sm opacity-70">{sub}</p>}
@@ -93,7 +93,10 @@ export default function ProductsPage() {
   const imageInputRef = useRef(null)
 
   const load = useCallback(() => {
-    api.get(`/products?q=${encodeURIComponent(query)}`).then((r) => setProducts(r.data.items))
+    api
+      .get(`/products?q=${encodeURIComponent(query)}`)
+      .then((r) => setProducts(r.data.items))
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load products'))
   }, [query])
 
   useEffect(() => {
@@ -199,10 +202,14 @@ export default function ProductsPage() {
 
   const remove = async (id) => {
     if (!window.confirm('Delete this product?')) return
-    await api.delete(`/products/${id}`)
-    toast.success('Product deleted')
-    if (editing?._id === id) cancelEdit()
-    load()
+    try {
+      await api.delete(`/products/${id}`)
+      toast.success('Product deleted')
+      if (editing?._id === id) cancelEdit()
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not delete product')
+    }
   }
 
   const submitRestock = async (e) => {
@@ -234,32 +241,32 @@ export default function ProductsPage() {
       <div className="grid min-h-0 flex-1 grid-rows-2 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(240px,280px)] lg:grid-rows-1">
         <section className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden">
           <div className="grid shrink-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Products" value={counts.all} className="border-slate-200 bg-white" />
+            <StatCard label="Products" value={counts.all} className="glass-stat-slate" />
             <StatCard
               label="In stock"
               value={counts.ok}
-              className="border-emerald-200 bg-emerald-50/50"
+              className="glass-stat-emerald"
             />
             <StatCard
               label="Low stock"
               value={counts.low}
               sub={`≤ ${LOW_STOCK_THRESHOLD} units`}
-              className="border-amber-200 bg-amber-50/50"
+              className="glass-stat-amber"
             />
             <StatCard
               label="Stock value"
               value={formatNaira(totalStockValue)}
               sub="At cost"
-              className="border-sky-200 bg-sky-50/50"
+              className="glass-panel border-sky-200 bg-sky-50"
             />
           </div>
 
-          <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="glass-panel shrink-0 p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <label className="block min-w-0 flex-1 text-base">
                 <span className="mb-1 block font-medium text-slate-700">Search</span>
                 <input
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-base focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="glass-input w-full p-2.5 text-base"
                   placeholder="Type product name…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -298,7 +305,7 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="min-h-0 flex-1 overflow-y-auto">
             <table className="w-full table-fixed border-collapse text-sm sm:text-base">
               <colgroup>
@@ -311,7 +318,7 @@ export default function ProductsPage() {
                 <col className="w-[25%]" />
               </colgroup>
               <thead className="sticky top-0 z-10">
-                <tr className="bg-gradient-to-r from-slate-800 to-slate-700 text-xs uppercase tracking-wide text-white sm:text-sm">
+                <tr className="glass-table-head text-xs uppercase tracking-wide text-white sm:text-sm">
                   <th className="p-2.5 text-left font-semibold sm:p-3">Product</th>
                   <th className="px-1.5 py-2.5 text-left font-semibold sm:p-3">Status</th>
                   <th className="px-1.5 py-2.5 text-right font-semibold sm:p-3">Stock</th>
@@ -427,10 +434,10 @@ export default function ProductsPage() {
 
         <aside
           ref={formRef}
-          className={`min-h-0 overflow-y-auto rounded-xl border p-4 shadow-sm ${
+          className={`min-h-0 overflow-y-auto p-4 ${
             editing
-              ? 'border-emerald-300 bg-gradient-to-b from-emerald-50 to-white ring-2 ring-emerald-200'
-              : 'border-slate-200 bg-white'
+              ? 'glass-panel border-emerald-200 bg-emerald-50 ring-2 ring-emerald-200'
+              : 'glass-panel'
           }`}
         >
           <div className="mb-4 flex items-start justify-between gap-2">
@@ -446,7 +453,7 @@ export default function ProductsPage() {
               <button
                 type="button"
                 onClick={cancelEdit}
-                className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+                className="glass-inset shrink-0 px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
               >
                 Cancel
               </button>
@@ -558,10 +565,10 @@ export default function ProductsPage() {
       </div>
 
       {restockId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={submitRestock}
-            className="w-full max-w-md space-y-4 rounded-2xl border border-sky-200 bg-white p-6 shadow-2xl"
+            className="w-full max-w-md space-y-4 glass-panel-strong border-sky-200/50 p-6 shadow-2xl"
           >
             <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
               <ProductAvatar

@@ -25,7 +25,7 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
     setLoading(true)
     try {
       const [p, saleRes] = await Promise.all([
-        api.get('/products?limit=200'),
+        api.get('/products?limit=500'),
         api.get(`/sales/${saleId}`),
       ])
       const sale = saleRes.data
@@ -54,7 +54,9 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
 
       setPayments(payRows)
       setForm({
-        customerPick: sale.customerId ? String(sale.customerId) : WALK_IN,
+        customerPick: sale.customerId
+          ? String(sale.customerId?._id ?? sale.customerId)
+          : WALK_IN,
         walkInName: sale.customerId ? '' : sale.customerName || '',
         note: sale.note || '',
       })
@@ -237,7 +239,7 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
       aria-modal="true"
       aria-labelledby="edit-sale-title"
     >
-      <div className="flex min-h-0 w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+      <div className="flex min-h-0 w-full max-w-6xl flex-col overflow-hidden glass-panel-strong shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 id="edit-sale-title" className="text-lg font-semibold text-slate-900">
             Edit invoice {invoiceNumber || ''}
@@ -277,8 +279,14 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
                     lines={cart}
                     products={products}
                     onUpdateQty={updateCartQty}
+                    onAddQty={(pid, add) => {
+                      const max = maxQtyForProduct(pid)
+                      const line = cart.find((l) => l.productId === pid)
+                      if (line) updateCartQty(pid, Math.min(max, line.quantity + add))
+                    }}
                     onUpdatePrice={updateCartPrice}
                     onRemove={removeFromCart}
+                    maxQtyForProduct={maxQtyForProduct}
                   />
                 </div>
               </div>
@@ -309,6 +317,7 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
               onSearchChange={setProductSearch}
               cartLines={cart}
               onAddProduct={addProduct}
+              maxQtyForProduct={maxQtyForProduct}
             />
           </form>
         )}

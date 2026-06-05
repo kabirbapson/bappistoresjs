@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import Protected from './components/Protected'
 import CustomersPage from './pages/CustomersPage'
@@ -22,7 +23,8 @@ function withLayout(Page) {
 
 export default function App() {
   return (
-    <Routes>
+    <ErrorBoundary>
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={withLayout(DashboardPage)} />
       <Route path="/products" element={withLayout(ProductsPage)} />
@@ -32,5 +34,6 @@ export default function App() {
       <Route path="/debts" element={withLayout(DebtsPage)} />
       <Route path="/reports" element={withLayout(ReportsPage)} />
     </Routes>
+    </ErrorBoundary>
   )
 }

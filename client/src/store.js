@@ -7,9 +7,13 @@ export const useAuthStore = create((set) => ({
   loading: false,
   login: async (payload) => {
     set({ loading: true });
-    const { data } = await api.post("/auth/login", payload);
-    localStorage.setItem("bappi_token", data.token);
-    set({ token: data.token, user: data.user, loading: false });
+    try {
+      const { data } = await api.post("/auth/login", payload);
+      localStorage.setItem("bappi_token", data.token);
+      set({ token: data.token, user: data.user });
+    } finally {
+      set({ loading: false });
+    }
   },
   logout: () => {
     localStorage.removeItem("bappi_token");

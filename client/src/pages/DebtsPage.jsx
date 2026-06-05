@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import InvoiceReceipt from '../components/InvoiceReceipt'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
 import NumericInput from '../components/NumericInput'
@@ -7,7 +8,15 @@ import PasswordDeleteDialog from '../components/PasswordDeleteDialog'
 import api from '../api'
 import { deleteWithPassword } from '../utils/secureDelete'
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants'
-import { formatDateTable, formatNaira } from '../utils/format'
+import { formatDateOnly, formatNaira } from '../utils/format'
+
+const PERIODS = [
+  { value: 'all', label: 'All time' },
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'week', label: 'Last 7 days' },
+  { value: 'lastMonth', label: 'Last month' },
+]
 
 function statusMeta(status) {
   if (status === 'paid') {
@@ -19,12 +28,43 @@ function statusMeta(status) {
   return { label: 'Unpaid', badge: 'bg-rose-100 text-rose-800 ring-rose-200' }
 }
 
-function StatCard({ label, value, sub, className = '' }) {
+function customerInitial(name) {
+  return (name || '?').trim().charAt(0).toUpperCase()
+}
+
+/** Paid at checkout on the linked credit/partial sale (not recorded on the debt row). */
+function paidAtCheckout(debt, period = 'all') {
+  if (period !== 'all' && debt.checkoutPaidInPeriod != null) {
+    return debt.checkoutPaidInPeriod
+  }
+  const sale = debt.saleId
+  if (!sale || typeof sale !== 'object') return 0
+  return sale.amountPaid || 0
+}
+
+function paidOnDebtsPage(debt, period = 'all') {
+  if (period !== 'all' && debt.paymentsInPeriod != null) {
+    return debt.paymentsInPeriod
+  }
+  return debt.amountPaid || 0
+}
+
+function totalPaidTowardCredit(debt, period = 'all') {
+  return paidAtCheckout(debt, period) + paidOnDebtsPage(debt, period)
+}
+
+function StatCard({ label, value, sub, accent }) {
+  const accents = {
+    rose: 'border-l-rose-500 glass-stat-rose',
+    emerald: 'border-l-emerald-500 glass-stat-emerald',
+    amber: 'border-l-amber-500 glass-stat-amber',
+    slate: 'border-l-slate-400 glass-stat-slate',
+  }
   return (
-    <div className={`rounded-xl border px-4 py-3 shadow-sm ${className}`}>
-      <p className="text-sm font-medium uppercase tracking-wide opacity-70">{label}</p>
-      <p className="mt-0.5 text-2xl font-bold tabular-nums sm:text-3xl">{value}</p>
-      {sub && <p className="mt-0.5 text-sm opacity-70">{sub}</p>}
+    <div className={`rounded-xl border-l-4 px-4 py-3.5 shadow-sm ${accents[accent]}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900 sm:text-3xl">{value}</p>
+      {sub && <p className="mt-1 text-sm text-slate-600">{sub}</p>}
     </div>
   )
 }
@@ -53,20 +93,28 @@ function FilterPill({ active, label, count, tone, onClick }) {
 export default function DebtsPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState('all')
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
   const [payments, setPayments] = useState({})
-  const [methods, setMethods] = useState({})
+  const [payMethods, setPayMethods] = useState({})
   const [payingId, setPayingId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [preview, setPreview] = useState(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
+    const params = period === 'all' ? '' : `?period=${period}`
     api
-      .get('/debts')
+      .get(`/debts${params}`)
       .then((r) => setRows(r.data.items))
+      .catch(() => {
+        toast.error('Could not load debts')
+        setRows([])
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [period])
 
   useEffect(() => {
     load()
@@ -83,13 +131,6 @@ export default function DebtsPage() {
     }
   }, [rows])
 
-  const summary = useMemo(() => {
-    const outstanding = rows.reduce((s, d) => s + (d.balance || 0), 0)
-    const totalCredit = rows.reduce((s, d) => s + (d.totalAmount || 0), 0)
-    const collected = rows.reduce((s, d) => s + (d.amountPaid || 0), 0)
-    return { outstanding, totalCredit, collected }
-  }, [rows])
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return rows.filter((d) => {
@@ -99,10 +140,23 @@ export default function DebtsPage() {
       }
       if (!q) return true
       const name = (d.customerId?.name || '').toLowerCase()
-      const phone = (d.customerId?.phone || '').toLowerCase()
-      return name.includes(q) || phone.includes(q)
+      return name.includes(q)
     })
   }, [rows, query, statusFilter])
+
+  const summary = useMemo(() => {
+    const outstanding = filtered.reduce((s, d) => s + (d.balance || 0), 0)
+    const totalCredit = filtered.reduce((s, d) => s + (d.totalAmount || 0), 0)
+    const checkoutTotal = filtered.reduce((s, d) => s + paidAtCheckout(d, period), 0)
+    const debtsPageTotal = filtered.reduce((s, d) => s + paidOnDebtsPage(d, period), 0)
+    return {
+      outstanding,
+      totalCredit,
+      paidAtCheckout: checkoutTotal,
+      paidOnDebtsPage: debtsPageTotal,
+      totalPaid: checkoutTotal + debtsPageTotal,
+    }
+  }, [filtered, period])
 
   const pay = async (debtId) => {
     const amount = Number(payments[debtId] || 0)
@@ -115,9 +169,9 @@ export default function DebtsPage() {
       toast.error(`Maximum payment is ${formatNaira(debt.balance)}`)
       return
     }
-    const method = methods[debtId] || 'cash'
     setPayingId(debtId)
     try {
+      const method = payMethods[debtId] || 'cash'
       await api.post('/payments', { debtId, amount, method })
       toast.success('Payment recorded')
       setPayments((prev) => ({ ...prev, [debtId]: '' }))
@@ -131,6 +185,19 @@ export default function DebtsPage() {
 
   const setQuickPay = (debtId, balance) => {
     setPayments((prev) => ({ ...prev, [debtId]: String(balance) }))
+  }
+
+  const openInvoice = async (saleId) => {
+    if (!saleId) return
+    setLoadingPreview(true)
+    try {
+      const { data } = await api.get(`/sales/${saleId}`)
+      setPreview(data)
+    } catch {
+      toast.error('Could not load invoice')
+    } finally {
+      setLoadingPreview(false)
+    }
   }
 
   const confirmDeleteDebt = async (password) => {
@@ -152,49 +219,69 @@ export default function DebtsPage() {
       header={
         <PageHeader
           title="Debts"
-          subtitle="Credit sales & outstanding balances — record cash or POS payments"
+          subtitle="Credit sales — paid at checkout plus payments recorded here"
         />
       }
     >
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <div className="grid shrink-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
+            accent="rose"
             label="Outstanding"
             value={formatNaira(summary.outstanding)}
             sub={`${counts.active} account${counts.active !== 1 ? 's' : ''} with balance`}
-            className="border-rose-200 bg-gradient-to-br from-rose-50 to-white"
           />
           <StatCard
-            label="Collected"
-            value={formatNaira(summary.collected)}
-            sub="Paid toward credit sales"
-            className="border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white"
+            accent="emerald"
+            label={period === 'all' ? 'Total paid' : 'Paid in period'}
+            value={formatNaira(summary.totalPaid)}
+            sub={
+              period === 'all'
+                ? `${formatNaira(summary.paidAtCheckout)} at checkout · ${formatNaira(summary.paidOnDebtsPage)} on this page`
+                : `${formatNaira(summary.paidAtCheckout)} checkout · ${formatNaira(summary.paidOnDebtsPage)} debt payments`
+            }
           />
           <StatCard
+            accent="amber"
             label="Partial"
             value={counts.partial}
             sub="Still owe after payment"
-            className="border-amber-200 bg-gradient-to-br from-amber-50/80 to-white"
           />
           <StatCard
+            accent="slate"
             label="Total credit"
             value={formatNaira(summary.totalCredit)}
             sub="All credit sale amounts"
-            className="border-slate-200 bg-white"
           />
         </div>
 
-        <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="glass-panel shrink-0 p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <label className="block min-w-0 flex-1 text-base">
-              <span className="mb-1 block font-medium text-slate-700">Search debtor</span>
-              <input
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-base focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="Name or phone…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </label>
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <label className="block min-w-[140px] text-sm">
+                <span className="mb-1 block font-medium text-slate-700">Period</span>
+                <select
+                  className="glass-input w-full p-2.5 text-sm"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                >
+                  {PERIODS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block min-w-0 flex-1 text-sm">
+                <span className="mb-1 block font-medium text-slate-700">Search debtor</span>
+                <input
+                  className="glass-input w-full p-2.5 text-sm"
+                  placeholder="Search by name…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </label>
+            </div>
             <div className="flex flex-wrap gap-2">
               <FilterPill
                 active={statusFilter === 'active'}
@@ -236,117 +323,164 @@ export default function DebtsPage() {
         </div>
 
         {loading ? (
-          <p className="text-slate-500">Loading debts…</p>
+          <div className="glass-panel flex flex-1 items-center justify-center py-16">
+            <p className="text-slate-500">Loading debts…</p>
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
-            <p className="text-4xl">✓</p>
-            <p className="mt-3 text-lg font-semibold text-slate-800">
-              {query || statusFilter !== 'active'
+          <div className="glass-panel flex flex-1 flex-col items-center justify-center border-dashed border-slate-300 px-6 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">
+              ✓
+            </div>
+            <p className="mt-4 text-lg font-semibold text-slate-800">
+              {query || statusFilter !== 'active' || period !== 'all'
                 ? 'No debts match your filters'
                 : 'All clear — no outstanding debt'}
             </p>
             <p className="mt-1 max-w-sm text-sm text-slate-500">
-              {statusFilter === 'active' && !query
+              {statusFilter === 'active' && !query && period === 'all'
                 ? 'Credit customers will appear here when they have a balance.'
-                : 'Try another search or filter.'}
+                : 'Try another period, search, or filter.'}
             </p>
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="shrink-0 border-b border-slate-100 px-4 py-2.5">
+              <p className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-900">{filtered.length}</span> debt
+                {filtered.length !== 1 ? 's' : ''} shown
+                {period !== 'all' && (
+                  <span className="text-slate-500">
+                    {' '}
+                    · credit opened or payment in{' '}
+                    {PERIODS.find((p) => p.value === period)?.label?.toLowerCase()}
+                  </span>
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {period === 'all'
+                  ? 'Use a period filter to match Reports totals for that window.'
+                  : 'Paid amounts below are for this period only — matches Reports debt payments + checkout on credit sales.'}
+              </p>
+            </div>
             <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full table-fixed border-collapse text-base">
-                <colgroup>
-                  <col className="w-[16.8%]" />
-                  <col className="w-[9%]" />
-                  <col className="w-[11%]" />
-                  <col className="w-[11%]" />
-                  <col className="w-[11%]" />
-                  <col className="w-[35.2%]" />
-                  <col className="w-[8%]" />
-                </colgroup>
+              <table className="w-full min-w-[920px] border-collapse text-sm">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-gradient-to-r from-slate-800 to-slate-700 text-center text-sm uppercase tracking-wide text-white">
-                    <th className="whitespace-nowrap p-3 font-semibold">Customer</th>
-                    <th className="whitespace-nowrap p-3 font-semibold">Status</th>
-                    <th className="whitespace-nowrap p-3 font-semibold">Total</th>
-                    <th className="whitespace-nowrap p-3 font-semibold">Paid</th>
-                    <th className="whitespace-nowrap p-3 font-semibold">Balance</th>
-                    <th className="whitespace-nowrap p-3 font-semibold">Record payment</th>
-                    <th className="whitespace-nowrap p-3 font-semibold"> </th>
+                  <tr className="glass-table-head text-left text-xs uppercase tracking-wide text-white">
+                    <th className="p-3 font-semibold">Customer</th>
+                    <th className="p-3 text-center font-semibold">Status</th>
+                    <th className="p-3 text-right font-semibold">Total</th>
+                    <th className="p-3 text-right font-semibold">Paid</th>
+                    <th className="p-3 text-right font-semibold">Balance</th>
+                    <th className="p-3 text-center font-semibold">Record payment</th>
+                    <th className="w-12 p-3 font-semibold" aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((d, index) => {
                     const meta = statusMeta(d.status)
                     const name = d.customerId?.name || 'Customer'
-                    const phone = d.customerId?.phone
                     const canPay = d.balance > 0
                     const isPaying = payingId === d._id
+                    const saleId = d.saleId?._id || d.saleId
+                    const invoiceNumber = d.saleId?.invoiceNumber
 
                     return (
                       <tr
                         key={d._id}
-                        className={`border-b border-slate-200/80 transition-colors ${
-                          index % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/80 hover:bg-slate-100'
+                        className={`border-b border-slate-100 transition-colors ${
+                          index % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50 hover:bg-slate-100'
                         }`}
                       >
-                        <td className="p-3 text-left align-middle">
-                          <div className="mx-auto max-w-full">
-                            <p className="truncate font-semibold text-slate-900" title={name}>
-                              {name}
-                            </p>
-                            {phone && (
-                              <p className="mt-0.5 truncate text-sm tabular-nums text-slate-500">{phone}</p>
-                            )}
-                            {d.createdAt && (
-                              <p className="mt-1 whitespace-nowrap text-sm text-slate-400">
-                                Since {formatDateTable(d.createdAt)}
+                        <td className="p-3 align-middle">
+                          <div className="flex items-start gap-3">
+                            <div
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white"
+                              aria-hidden
+                            >
+                              {customerInitial(name)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-semibold text-slate-900" title={name}>
+                                {name}
                               </p>
-                            )}
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                                {d.createdAt && (
+                                  <span className="text-xs text-slate-400">
+                                    Since {formatDateOnly(d.createdAt)}
+                                  </span>
+                                )}
+                                {saleId && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openInvoice(saleId)}
+                                    disabled={loadingPreview}
+                                    className="rounded-md bg-emerald-50 px-1.5 py-0.5 font-mono text-xs text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100 disabled:opacity-50"
+                                    title="View invoice"
+                                  >
+                                    {invoiceNumber || 'Invoice'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap p-3 text-center align-middle">
+                        <td className="p-3 text-center align-middle">
                           <span
-                            className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-semibold ring-1 ${meta.badge}`}
+                            className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${meta.badge}`}
                           >
                             {meta.label}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap p-3 text-center align-middle tabular-nums text-slate-700">
+                        <td className="p-3 text-right align-middle tabular-nums text-slate-700">
                           {formatNaira(d.totalAmount)}
                         </td>
-                        <td className="whitespace-nowrap p-3 text-center align-middle tabular-nums text-emerald-800">
-                          {formatNaira(d.amountPaid)}
+                        <td className="p-3 text-right align-middle tabular-nums text-emerald-800">
+                          <p>{formatNaira(totalPaidTowardCredit(d, period))}</p>
+                          {period === 'all' &&
+                            paidAtCheckout(d, period) > 0 &&
+                            paidOnDebtsPage(d, period) > 0 && (
+                            <p className="mt-0.5 text-[10px] text-slate-500">
+                              incl. {formatNaira(paidAtCheckout(d, period))} at checkout
+                            </p>
+                          )}
+                          {period !== 'all' && totalPaidTowardCredit(d, period) === 0 && (
+                            <p className="mt-0.5 text-[10px] text-slate-400">No payment in period</p>
+                          )}
                         </td>
-                        <td className="whitespace-nowrap p-3 text-center align-middle font-bold tabular-nums text-rose-700">
+                        <td
+                          className={`whitespace-nowrap p-3 text-right align-middle font-bold tabular-nums ${
+                            canPay ? 'text-rose-700' : 'text-emerald-700'
+                          }`}
+                        >
                           {formatNaira(d.balance)}
                         </td>
-                        <td className="p-3 text-center align-middle">
+                        <td className="p-3 align-middle">
                           {canPay ? (
-                            <div className="mx-auto flex w-full max-w-full flex-nowrap items-center justify-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setQuickPay(d._id, d.balance)}
-                                className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 text-base font-medium text-slate-700 hover:bg-slate-100"
-                              >
-                                Full balance
-                              </button>
+                            <div className="mx-auto flex w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1.5">
                               <select
-                                className="inline-flex h-10 w-[5.5rem] shrink-0 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2 text-base focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                                value={methods[d._id] || 'cash'}
+                                className="h-9 rounded-lg border border-slate-200 bg-white px-1.5 text-xs font-medium"
+                                value={payMethods[d._id] || 'cash'}
                                 onChange={(e) =>
-                                  setMethods({ ...methods, [d._id]: e.target.value })
+                                  setPayMethods((prev) => ({ ...prev, [d._id]: e.target.value }))
                                 }
                               >
                                 {PAYMENT_METHODS.map((m) => (
                                   <option key={m} value={m}>
-                                    {m === 'pos' ? 'POS' : 'Cash'}
+                                    {PAYMENT_METHOD_LABELS[m]}
                                   </option>
                                 ))}
                               </select>
+                              <button
+                                type="button"
+                                onClick={() => setQuickPay(d._id, d.balance)}
+                                className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                title={`Fill ${formatNaira(d.balance)}`}
+                              >
+                                Full
+                              </button>
                               <NumericInput
                                 placeholder="Amount"
-                                className="h-10 min-w-[5rem] max-w-[8rem] flex-1 rounded-lg border border-slate-200 px-2 py-0 text-center text-base font-semibold tabular-nums leading-10 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                className="h-9 w-24 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-semibold tabular-nums focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                                 value={
                                   payments[d._id] === '' || payments[d._id] == null
                                     ? ''
@@ -363,22 +497,41 @@ export default function DebtsPage() {
                                 type="button"
                                 disabled={isPaying}
                                 onClick={() => pay(d._id)}
-                                className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-lg bg-emerald-700 px-4 text-base font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-50"
+                                className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
                               >
                                 {isPaying ? '…' : 'Record'}
                               </button>
                             </div>
                           ) : (
-                            <span className="text-base font-medium text-emerald-700">Settled</span>
+                            <div className="flex items-center justify-center gap-1.5 text-emerald-700">
+                              <span className="text-lg" aria-hidden>
+                                ✓
+                              </span>
+                              <span className="text-sm font-medium">Settled</span>
+                            </div>
                           )}
                         </td>
-                        <td className="whitespace-nowrap p-3 text-center align-middle">
+                        <td className="p-3 text-center align-middle">
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(d)}
-                            className="inline-flex h-10 items-center whitespace-nowrap rounded-lg border border-rose-200 bg-rose-50 px-3 text-base font-medium text-rose-700 hover:bg-rose-100"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            title="Delete debt record"
+                            aria-label={`Delete debt for ${name}`}
                           >
-                            Delete
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="h-5 w-5"
+                              aria-hidden
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.045-.112a.75.75 0 0 1 .256-1.478 48.567 48.567 0 0 1 3.878-.512V4.478a3 3 0 0 1 3-2.983V3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v.745a3 3 0 0 1 3 2.983ZM9.75 6.75v7.5a.75.75 0 0 0 1.5 0v-7.5a.75.75 0 0 0-1.5 0Zm3 0v7.5a.75.75 0 0 0 1.5 0v-7.5a.75.75 0 0 0-1.5 0Z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
                           </button>
                         </td>
                       </tr>
@@ -402,6 +555,14 @@ export default function DebtsPage() {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDeleteDebt}
       />
+
+      {preview && (
+        <InvoiceReceipt
+          invoice={preview}
+          title="Invoice preview"
+          onClose={() => setPreview(null)}
+        />
+      )}
     </PageShell>
   )
 }
