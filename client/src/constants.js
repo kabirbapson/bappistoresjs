@@ -40,8 +40,11 @@ export const LOW_STOCK_THRESHOLD = 50
 
 export const PRODUCT_CATEGORY = 'Beverages'
 
-/** Add-to-qty buttons on the sales cart (100, 200, 500). */
-export const QUICK_QTY_INCREMENTS = [100, 200, 500]
+/** Quick qty presets on the sales cart — sets quantity to 100, 200, or 500. */
+export const QUICK_QTY_PRESETS = [100, 200, 500]
+
+/** @deprecated use QUICK_QTY_PRESETS */
+export const QUICK_QTY_INCREMENTS = QUICK_QTY_PRESETS
 
 /** Checkout payment mode — must pick one before recording a sale. */
 export const SALE_PAYMENT_MODES = [

@@ -7,7 +7,6 @@ import NumericInput from '../components/NumericInput'
 import PasswordDeleteDialog from '../components/PasswordDeleteDialog'
 import api from '../api'
 import { deleteWithPassword } from '../utils/secureDelete'
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../constants'
 import { formatDateOnly, formatNaira } from '../utils/format'
 
 const PERIODS = [
@@ -97,7 +96,6 @@ export default function DebtsPage() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
   const [payments, setPayments] = useState({})
-  const [payMethods, setPayMethods] = useState({})
   const [payingId, setPayingId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -171,8 +169,7 @@ export default function DebtsPage() {
     }
     setPayingId(debtId)
     try {
-      const method = payMethods[debtId] || 'cash'
-      await api.post('/payments', { debtId, amount, method })
+      await api.post('/payments', { debtId, amount, method: 'cash' })
       toast.success('Payment recorded')
       setPayments((prev) => ({ ...prev, [debtId]: '' }))
       load()
@@ -457,19 +454,6 @@ export default function DebtsPage() {
                         <td className="p-3 align-middle">
                           {canPay ? (
                             <div className="mx-auto flex w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1.5">
-                              <select
-                                className="h-9 rounded-lg border border-slate-200 bg-white px-1.5 text-xs font-medium"
-                                value={payMethods[d._id] || 'cash'}
-                                onChange={(e) =>
-                                  setPayMethods((prev) => ({ ...prev, [d._id]: e.target.value }))
-                                }
-                              >
-                                {PAYMENT_METHODS.map((m) => (
-                                  <option key={m} value={m}>
-                                    {PAYMENT_METHOD_LABELS[m]}
-                                  </option>
-                                ))}
-                              </select>
                               <button
                                 type="button"
                                 onClick={() => setQuickPay(d._id, d.balance)}

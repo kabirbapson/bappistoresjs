@@ -48,9 +48,10 @@ export default function SalesPage() {
   }, [load])
 
   const filteredProducts = useMemo(() => {
+    const inStock = products.filter((p) => (p.quantity ?? 0) > 0)
     const q = productSearch.trim().toLowerCase()
-    if (!q) return products
-    return products.filter((p) => p.name?.toLowerCase().includes(q))
+    if (!q) return inStock
+    return inStock.filter((p) => p.name?.toLowerCase().includes(q))
   }, [products, productSearch])
 
   const lineUnitPrice = (line, product) =>
@@ -156,19 +157,6 @@ export default function SalesPage() {
     setCart((prev) =>
       prev.map((l) => (l.productId === productId ? { ...l, quantity: qty } : l)),
     )
-  }
-
-  const addCartQty = (productId, increment) => {
-    const p = products.find((x) => x._id === productId)
-    const line = cart.find((l) => l.productId === productId)
-    if (!p || !line) return
-    const next = line.quantity + increment
-    if (next > p.quantity) {
-      toast.error(`Only ${p.quantity} of ${p.name} available`)
-      updateCartQty(productId, p.quantity)
-      return
-    }
-    updateCartQty(productId, next)
   }
 
   const removeFromCart = (productId) => {
@@ -314,7 +302,6 @@ export default function SalesPage() {
                 lines={cart}
                 products={products}
                 onUpdateQty={updateCartQty}
-                onAddQty={addCartQty}
                 onUpdatePrice={updateCartPrice}
                 onRemove={removeFromCart}
               />

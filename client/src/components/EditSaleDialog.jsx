@@ -279,11 +279,6 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
                     lines={cart}
                     products={products}
                     onUpdateQty={updateCartQty}
-                    onAddQty={(pid, add) => {
-                      const max = maxQtyForProduct(pid)
-                      const line = cart.find((l) => l.productId === pid)
-                      if (line) updateCartQty(pid, Math.min(max, line.quantity + add))
-                    }}
                     onUpdatePrice={updateCartPrice}
                     onRemove={removeFromCart}
                     maxQtyForProduct={maxQtyForProduct}

@@ -1,6 +1,6 @@
 import NumericInput from './NumericInput'
 import ProductAvatar from './ProductAvatar'
-import { QUICK_QTY_INCREMENTS } from '../constants'
+import { QUICK_QTY_PRESETS } from '../constants'
 import { formatNaira } from '../utils/format'
 
 function PriceField({ value, listPrice, onChange, large = false, compact = false }) {
@@ -26,7 +26,6 @@ export default function SaleCartRow({
   lines,
   products,
   onUpdateQty,
-  onAddQty,
   onUpdatePrice,
   onRemove,
   compact = false,
@@ -47,13 +46,9 @@ export default function SaleCartRow({
     return product?.quantity ?? 0
   }
 
-  const bumpQty = (line, add) => {
-    if (onAddQty) {
-      onAddQty(line.productId, add)
-      return
-    }
+  const setQuickQty = (line, qty) => {
     const max = stockMax(line)
-    onUpdateQty(line.productId, Math.min(max, line.quantity + add))
+    onUpdateQty(line.productId, Math.min(max, qty))
   }
 
   if (compact) {
@@ -126,15 +121,19 @@ export default function SaleCartRow({
                 </div>
 
                 <div className="mt-2 grid grid-cols-3 gap-1">
-                  {QUICK_QTY_INCREMENTS.map((add) => (
+                  {QUICK_QTY_PRESETS.map((qty) => (
                     <button
-                      key={add}
+                      key={qty}
                       type="button"
-                      onClick={() => bumpQty(line, add)}
-                      disabled={line.quantity >= maxQty}
-                      className="rounded-md border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-40"
+                      onClick={() => setQuickQty(line, qty)}
+                      disabled={maxQty <= 0}
+                      className={`rounded-md border py-1.5 text-xs font-bold transition ${
+                        line.quantity === qty
+                          ? 'border-emerald-500 bg-emerald-100 text-emerald-900'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'
+                      } disabled:opacity-40`}
                     >
-                      {add}
+                      {qty}
                     </button>
                   ))}
                 </div>
@@ -217,14 +216,16 @@ export default function SaleCartRow({
                 </button>
               </div>
               <div className="mt-1.5 flex flex-nowrap gap-1">
-                {QUICK_QTY_INCREMENTS.map((add) => (
+                {QUICK_QTY_PRESETS.map((qty) => (
                   <button
-                    key={add}
+                    key={qty}
                     type="button"
-                    onClick={() => bumpQty(line, add)}
-                    className="rounded border px-1.5 py-0.5 text-xs font-semibold"
+                    onClick={() => setQuickQty(line, qty)}
+                    className={`rounded border px-1.5 py-0.5 text-xs font-semibold ${
+                      line.quantity === qty ? 'border-emerald-500 bg-emerald-50' : ''
+                    }`}
                   >
-                    {add}
+                    {qty}
                   </button>
                 ))}
               </div>
