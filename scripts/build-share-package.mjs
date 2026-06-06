@@ -91,6 +91,7 @@ const COPY_FILES = [
   'BACKUP.bat',
   'CONFIGURE-HOSTNAME.bat',
   'REPAIR-DATABASE.bat',
+  'TEST-DATABASE.bat',
   'FIX-INVOICES.bat',
   'STOP-APP.bat',
   'RESTORE-BACKUP.bat',

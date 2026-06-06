@@ -4,6 +4,16 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import {
+  isCorruptionError,
+  quarantineBrokenDb,
+  removeStaleLocks,
+  runMongodRepair,
+  shopDataLooksEmpty,
+  startDirectMongod,
+  stopDirectMongod,
+  verifyMongodBinary,
+} from "./builtin-mongod.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +38,7 @@ export const MONGODB_BIN_CACHE = path.resolve(
 );
 
 let memoryServer;
+let useDirectMongod = false;
 
 const connectOpts = { serverSelectionTimeoutMS: 30000 };
 
@@ -127,7 +138,47 @@ async function createMemoryServer({ clearCache = false } = {}) {
   });
 }
 
+async function startDirectWithRecovery(binary) {
+  try {
+    verifyMongodBinary(binary);
+    return await startDirectMongod({ binary, dbPath: PERSISTENT_DB_PATH });
+  } catch (err) {
+    if (!isCorruptionError(err)) throw err;
+
+    console.warn("Database files may be damaged — attempting repair…");
+    removeStaleLocks(PERSISTENT_DB_PATH);
+
+    try {
+      runMongodRepair(binary, PERSISTENT_DB_PATH);
+      verifyMongodBinary(binary);
+      return await startDirectMongod({ binary, dbPath: PERSISTENT_DB_PATH });
+    } catch (repairErr) {
+      if (shopDataLooksEmpty(PERSISTENT_DB_PATH)) {
+        console.warn("No shop data found — creating a fresh database folder…");
+        quarantineBrokenDb(PERSISTENT_DB_PATH);
+        verifyMongodBinary(binary);
+        return await startDirectMongod({ binary, dbPath: PERSISTENT_DB_PATH });
+      }
+      throw repairErr;
+    }
+  }
+}
+
 async function startBuiltInMongo() {
+  const binary = findSystemMongod();
+  if (binary) {
+    try {
+      useDirectMongod = true;
+      return await startDirectWithRecovery(binary);
+    } catch (directErr) {
+      useDirectMongod = false;
+      console.warn(
+        `Direct mongod start failed — trying alternate engine (${directErr.message})`,
+      );
+      await stopDirectMongod();
+    }
+  }
+
   const timeoutAttempts = [MONGO_STARTUP_TIMEOUT_MS, 420000, 600000];
   let lastErr;
 
@@ -151,7 +202,8 @@ async function startBuiltInMongo() {
 
     try {
       const clearCache = i > 0 && lastErr && isSpawnEftypeError(lastErr);
-      return await createMemoryServer({ clearCache });
+      const server = await createMemoryServer({ clearCache });
+      return { mode: "memory", server };
     } catch (err) {
       lastErr = err;
       if (isSpawnEftypeError(err) && i < timeoutAttempts.length - 1) {
@@ -170,10 +222,10 @@ async function startBuiltInMongo() {
 
   const hint =
     "Built-in database could not start on this PC.\n" +
-    "1) Wait 2–3 minutes and run SETUP.bat again (first start can be slow).\n" +
-    "2) Allow this app folder in Windows Defender / antivirus.\n" +
-    "3) Run REPAIR-DATABASE.bat then SETUP.bat.\n" +
-    "4) Or install MongoDB Community from mongodb.com and set in server\\.env:\n" +
+    "1) Double-click STOP-APP.bat, then REPAIR-DATABASE.bat, then START.bat.\n" +
+    "2) Add this entire app folder to Windows Defender exclusions.\n" +
+    "3) Move the folder to C:\\BappiStores (not Desktop) and try again.\n" +
+    "4) Or install MongoDB Community and set in server\\.env:\n" +
     "   MONGO_URI=mongodb://127.0.0.1:27017/bappistores";
   throw new Error(`${hint}\n\nTechnical: ${lastErr?.message || lastErr}`);
 }
@@ -197,11 +249,16 @@ export async function connectDB(uri) {
     }
   }
 
-  if (!memoryServer) {
-    memoryServer = await startBuiltInMongo();
+  const started = await startBuiltInMongo();
+
+  let localUri;
+  if (useDirectMongod && started?.uri) {
+    localUri = started.uri;
+  } else {
+    memoryServer = started.server;
+    localUri = memoryServer.getUri("bappistores");
   }
 
-  const localUri = memoryServer.getUri("bappistores");
   await mongoose.connect(localUri, connectOpts);
   console.log(`Database folder: ${PERSISTENT_DB_PATH}`);
   console.log("Keep the data/mongodb folder — all sales and products are stored there.");
@@ -210,6 +267,10 @@ export async function connectDB(uri) {
 
 export async function closeDB() {
   await mongoose.connection.close();
+  if (useDirectMongod) {
+    await stopDirectMongod();
+    useDirectMongod = false;
+  }
   if (memoryServer) {
     await memoryServer.stop({ doCleanup: false });
     memoryServer = undefined;
