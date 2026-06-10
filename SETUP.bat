@@ -27,8 +27,13 @@ echo  ==================================================
 echo   BAPPI STORES - SETUP
 echo  ==================================================
 echo.
+echo  IMPORTANT - WHERE TO INSTALL:
+echo    Use  C:\BappiStores
+echo    NOT Documents, Desktop, or OneDrive ^(database will break^).
+echo.
 if exist "%~dp0bundled\OFFLINE.txt" (
   echo  Offline package - no internet required.
+  echo  Run CHECK-INSTALL.bat first if setup failed before.
 ) else (
   echo  Internet needed once for packages and database download.
 )

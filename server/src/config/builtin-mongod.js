@@ -15,10 +15,28 @@ export function isCorruptionError(err) {
   return (
     /fassert/i.test(msg) ||
     /WiredTiger/i.test(msg) ||
+    /recovery failed/i.test(msg) ||
+    /metadata corruption/i.test(msg) ||
+    /WiredTigerLog/i.test(msg) ||
     /corrupt/i.test(msg) ||
-    /lock/i.test(msg) ||
+    /non-specific WiredTiger/i.test(msg) ||
+    /exited unexpectedly \(code 14/i.test(msg) ||
     /NonExistent/i.test(msg)
   );
+}
+
+export function warnIfRiskyDbLocation(dbPath) {
+  const normalized = dbPath.replace(/\\/g, "/").toLowerCase();
+  if (
+    normalized.includes("/documents/") ||
+    normalized.includes("onedrive") ||
+    normalized.includes("/desktop/")
+  ) {
+    console.warn(
+      "Database is under Documents, Desktop, or OneDrive — this often corrupts MongoDB.\n" +
+        "Move the whole Bappi Stores folder to C:\\BappiStores and run REPAIR-DATABASE.bat.",
+    );
+  }
 }
 
 export function removeStaleLocks(dbPath) {
@@ -138,27 +156,37 @@ function spawnMongod(binary, dbPath, port) {
     "wiredTiger",
   ];
 
+  const logs = { stdout: "", stderr: "" };
+
   const child = spawn(binary, args, {
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
     detached: false,
   });
 
+  const noteLog = (text) => {
+    if (!text.trim()) return;
+    if (/fatal assertion|fassert|recovery failed|metadata corruption/i.test(text)) {
+      console.error(`[mongod] ${text.trim().slice(0, 500)}`);
+    }
+  };
+
   child.stdout?.on("data", (chunk) => {
     const text = chunk.toString();
-    if (/error|fassert|assertion/i.test(text)) {
-      console.error(`[mongod] ${text.trim()}`);
-    }
+    logs.stdout += text;
+    noteLog(text);
   });
   child.stderr?.on("data", (chunk) => {
     const text = chunk.toString();
-    if (text.trim()) console.error(`[mongod] ${text.trim()}`);
+    logs.stderr += text;
+    noteLog(text);
   });
 
   child.on("error", (err) => {
     console.error("mongod process error:", err.message);
   });
 
+  child._bappiLogs = logs;
   return child;
 }
 
@@ -171,21 +199,24 @@ export async function startDirectMongod({ binary, dbPath, port = 27017 }) {
   }
 
   mkdirSync(dbPath, { recursive: true });
+  warnIfRiskyDbLocation(dbPath);
   removeStaleLocks(dbPath);
 
   const chosenPort = await pickPort(Number(process.env.BUILTIN_MONGOD_PORT) || port);
   console.log(`Starting built-in database (direct mongod on port ${chosenPort})…`);
 
-  mongodProcess = spawnMongod(binary, dbPath, chosenPort);
+  const proc = spawnMongod(binary, dbPath, chosenPort);
+  mongodProcess = proc;
   activePort = chosenPort;
 
   const crashed = new Promise((_, reject) => {
-    mongodProcess.once("exit", (code, signal) => {
+    proc.once("exit", (code, signal) => {
       mongodProcess = null;
       activePort = null;
+      const tail = `${proc._bappiLogs?.stderr || ""}${proc._bappiLogs?.stdout || ""}`.slice(-2000);
       reject(
         new Error(
-          `mongod exited unexpectedly (code ${code ?? "?"}, signal ${signal ?? "?"})`,
+          `mongod exited unexpectedly (code ${code ?? "?"}, signal ${signal ?? "?"})\n${tail}`,
         ),
       );
     });

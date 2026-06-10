@@ -10,7 +10,12 @@ import { appUrl } from './app-host.mjs'
 import { findBundledMongod } from './find-bundled-mongod.mjs'
 import { banner, fail, initProgressLog, progress, step, stepOk } from './progress.mjs'
 import { getNodeExe, isOfflineBundle } from './node-runtime.mjs'
+import {
+  assertSafeInstallPath,
+  formatInstallPathWarning,
+} from './install-path.mjs'
 import { runNodeScript, runNpm } from './spawn-utils.mjs'
+import { verifyDatabaseFolder, verifyMongodBinary } from './verify-database.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const isWin = process.platform === 'win32'
@@ -95,7 +100,25 @@ function hasPersistedShopData() {
   }
 }
 
-function main() {
+function stopRunningShop() {
+  try {
+    runNodeScript(join(root, 'scripts', 'stop-app.mjs'), [], root)
+  } catch {
+    /* ignore */
+  }
+}
+
+async function verifyFreshDatabase() {
+  const mongod = findBundledMongod(root)
+  if (!mongod) return
+  const dbPath = join(root, 'data', 'mongodb')
+  progress('Verifying database starts (same check as START.bat)…')
+  await verifyMongodBinary(mongod)
+  await verifyDatabaseFolder(mongod, dbPath, 27017)
+  progress('Database verification passed')
+}
+
+async function main() {
   const nodeMajor = Number.parseInt(process.versions.node.split('.')[0], 10)
   if (nodeMajor < 20) {
     throw new Error(
@@ -108,12 +131,22 @@ function main() {
 
   banner('Bappi Stores — SETUP (first-time install)')
   progress(`Node.js ${process.versions.node}`)
+  progress(`Install folder: ${root}`)
+
+  const pathCheck = assertSafeInstallPath(root, { strict: offline })
+  if (pathCheck.risky) {
+    progress(formatInstallPathWarning(pathCheck))
+  }
+
   if (offline) {
     progress('Offline package detected — no internet required.')
+    progress('Shop PCs: install only under C:\\BappiStores (not Documents or Desktop).')
   } else {
     progress('This may take 5–15 minutes on first run (downloads packages + database).')
   }
   progress('Full log also saved to: setup-log.txt')
+
+  stopRunningShop()
 
   step(1, TOTAL_STEPS, 'Config files')
   ensureEnv('server/.env.example', 'server/.env')
@@ -165,19 +198,13 @@ function main() {
     progress('Creating admin login and sample products…')
     runNodeScript(join(root, 'server', 'src', 'seed.js'), [], join(root, 'server'))
     stepOk('Admin user and sample data created')
+    await verifyFreshDatabase()
   }
 
   writeFileSync(join(root, '.setup-complete'), new Date().toISOString())
   if (!alreadyInstalled) {
     mkdirSync(join(root, 'data'), { recursive: true })
     writeFileSync(join(root, 'data/.shop-in-use'), new Date().toISOString())
-  }
-
-  progress('Optional: local hostname (bappistores)…')
-  try {
-    runNodeScript(join(root, 'scripts', 'configure-hostname.mjs'), [], root)
-  } catch (err) {
-    progress(`Hostname step skipped: ${err.message}`)
   }
 
   const url = appUrl(5001)
@@ -187,14 +214,16 @@ function main() {
   progress('Login: admin@bappi.com  /  Password: admin123')
   if (isWin) {
     progress('Next: double-click START.bat every day.')
+    progress('Optional once: CONFIGURE-HOSTNAME.bat as Administrator (for http://bappistores:5001).')
   } else {
     progress('Next: double-click START.command every day.')
   }
   progress('Your data is saved in data/mongodb (do not delete that folder).')
+  progress('Add this folder to Windows Defender exclusions (recommended).')
 }
 
 try {
-  main()
+  await main()
 } catch (err) {
   fail(err.message || String(err))
   console.error('\n========================================')

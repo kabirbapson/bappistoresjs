@@ -1,6 +1,17 @@
 BAPPI STORES — SETUP FOR A NEW COMPUTER
 ======================================
 
+WHERE TO INSTALL (Windows shop PC — read first)
+----------------------------------------------
+  YES:  C:\BappiStores
+  NO:   Documents, Desktop, OneDrive, Downloads
+
+  If the app is in Documents (e.g. BappiStores-Share on Desktop),
+  the database often breaks on START with WiredTiger / fassert errors.
+
+  Before SETUP: run CHECK-INSTALL.bat (optional but recommended).
+
+
 WHAT YOU NEED (once per computer)
 ---------------------------------
 1. Install Node.js LTS from https://nodejs.org
@@ -90,12 +101,16 @@ Port already in use
   → Edit server\.env and change PORT=5001 to PORT=5002
   → Open http://bappistores:5002 instead.
 
+Database error on START (WiredTiger, fassert, recovery failed)?
+  → Move the whole folder to C:\BappiStores (not Documents/OneDrive).
+  → Add C:\BappiStores to Windows Defender exclusions.
+  → STOP-APP.bat → REPAIR-DATABASE.bat → START.bat
+  → Brand-new PC with only sample data: RESET-FRESH-DATABASE.bat
+
 Setup failed with "EFTYPE" or "failed to start within 10000ms"?
-  → The download may have finished — first START can take 2–5 minutes on slow PCs.
-  → Run SETUP.bat again and wait (do not close the window).
+  → First START can take 2–5 minutes on slow PCs — wait.
+  → Run CHECK-INSTALL.bat, then SETUP.bat again.
   → Allow this app folder in Windows Defender / antivirus.
-  → Or double-click  REPAIR-DATABASE.bat  then SETUP.bat again.
-  → Your sales in  data\mongodb  are not deleted by repair.
 
 Setup failed on Windows?
   → Open  setup-log.txt  in this folder (created by SETUP.bat)

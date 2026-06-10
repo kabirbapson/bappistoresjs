@@ -153,13 +153,13 @@ async function startDirectWithRecovery(binary) {
       verifyMongodBinary(binary);
       return await startDirectMongod({ binary, dbPath: PERSISTENT_DB_PATH });
     } catch (repairErr) {
-      if (shopDataLooksEmpty(PERSISTENT_DB_PATH)) {
-        console.warn("No shop data found — creating a fresh database folder…");
-        quarantineBrokenDb(PERSISTENT_DB_PATH);
-        verifyMongodBinary(binary);
-        return await startDirectMongod({ binary, dbPath: PERSISTENT_DB_PATH });
-      }
-      throw repairErr;
+      console.warn("Repair did not fix startup — trying a fresh database folder…");
+      console.warn(
+        "If you had real sales, restore from BACKUP.bat instead of continuing.",
+      );
+      quarantineBrokenDb(PERSISTENT_DB_PATH);
+      verifyMongodBinary(binary);
+      return await startDirectMongod({ binary, dbPath: PERSISTENT_DB_PATH });
     }
   }
 }
@@ -172,10 +172,13 @@ async function startBuiltInMongo() {
       return await startDirectWithRecovery(binary);
     } catch (directErr) {
       useDirectMongod = false;
+      await stopDirectMongod();
+      if (isCorruptionError(directErr)) {
+        throw directErr;
+      }
       console.warn(
         `Direct mongod start failed — trying alternate engine (${directErr.message})`,
       );
-      await stopDirectMongod();
     }
   }
 

@@ -91,7 +91,9 @@ const COPY_FILES = [
   'BACKUP.bat',
   'CONFIGURE-HOSTNAME.bat',
   'REPAIR-DATABASE.bat',
+  'RESET-FRESH-DATABASE.bat',
   'TEST-DATABASE.bat',
+  'CHECK-INSTALL.bat',
   'FIX-INVOICES.bat',
   'STOP-APP.bat',
   'RESTORE-BACKUP.bat',
@@ -276,14 +278,22 @@ OFFLINE PACKAGE (this zip)
 - Node.js and MongoDB are included in the  bundled/  folder.
 - All npm packages are included (node_modules).
 
+WHERE TO INSTALL (VERY IMPORTANT)
+-----------------------------------
+  YES:  C:\\BappiStores
+  NO:   Documents, Desktop, OneDrive, Downloads
+
+  OneDrive/Documents corrupts the database (WiredTiger errors on START).
+
 NEW COMPUTER (first time)
 -------------------------
-1. Unzip the whole folder (e.g. C:\\BappiStores)
-2. Double-click SETUP.bat — wait until it says finished (5–15 min first time)
-3. Once: CONFIGURE-HOSTNAME.bat as Administrator (Windows)
-4. Every day: START.bat
-5. Browser: http://bappistores:5001
+1. Unzip to C:\\BappiStores  (create the folder if needed)
+2. Optional: CHECK-INSTALL.bat — confirms folder + database engine
+3. Double-click SETUP.bat — wait until "SETUP FINISHED SUCCESSFULLY"
+4. Add C:\\BappiStores to Windows Defender exclusions
+5. Every day: START.bat — browser http://localhost:5001
    Login: admin@bappi.com / admin123
+6. Optional: CONFIGURE-HOSTNAME.bat as Administrator
 
 You do NOT need to install Node.js from nodejs.org for this offline zip.
 
@@ -298,7 +308,10 @@ Do NOT delete:
   server/uploads   — product photos you uploaded
   bundled/         — required for database and Node.js
 
-Database error? Run REPAIR-DATABASE.bat then SETUP.bat again.
+Database error on START?
+  → Move folder to C:\\BappiStores if it is in Documents/Desktop
+  → STOP-APP.bat, then REPAIR-DATABASE.bat, then START.bat
+  → New PC with no real sales: RESET-FRESH-DATABASE.bat
 Duplicate invoice error? Run FIX-INVOICES.bat (START.bat can stay open).
 Receipt not printing? Open receipt preview, choose paper width, click Print receipt (scale 100%).
 Setup failed? Open setup-log.txt and send to IT.

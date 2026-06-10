@@ -27,6 +27,13 @@ if not exist ".setup-complete" (
   exit /b 1
 )
 
+echo %CD% | findstr /I "Documents Desktop OneDrive" >nul && (
+  echo.
+  echo  WARNING: App is under Documents/Desktop/OneDrive.
+  echo  Move to C:\BappiStores to avoid database errors.
+  echo.
+)
+
 echo.
 echo  Bappi Stores is starting...
 echo  Browser: http://127.0.0.1:5001

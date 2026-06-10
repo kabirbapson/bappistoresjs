@@ -1,14 +1,14 @@
 /**
- * Repair built-in MongoDB on shop PCs. Keeps data/mongodb unless --reset-empty.
+ * Repair built-in MongoDB on shop PCs.
  * Run: REPAIR-DATABASE.bat  OR  node scripts/repair-database.mjs
+ * Fresh reset (no real sales): node scripts/repair-database.mjs --reset-fresh
  */
-import { existsSync, readdirSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'fs'
 import { dirname, join } from 'path'
 import { spawnSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import { findBundledMongod } from './find-bundled-mongod.mjs'
 import { banner, fail, initProgressLog, progress } from './progress.mjs'
-import { getNodeExe } from './node-runtime.mjs'
 import { runNodeScript } from './spawn-utils.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -32,14 +32,44 @@ function dbHasShopData(dbPath) {
   if (!existsSync(dbPath)) return false
   try {
     const names = readdirSync(dbPath)
-    return names.some((n) => n.startsWith('WiredTiger') || n.startsWith('collection-') || n.endsWith('.wt'))
+    return names.some(
+      (n) =>
+        n.startsWith('WiredTiger') ||
+        n.startsWith('collection-') ||
+        n.endsWith('.wt') ||
+        n === 'storage.bson',
+    )
   } catch {
     return false
   }
 }
 
+function warnOneDrive() {
+  const normalized = root.replace(/\\/g, '/').toLowerCase()
+  if (
+    normalized.includes('/documents/') ||
+    normalized.includes('onedrive') ||
+    normalized.includes('/desktop/')
+  ) {
+    progress(
+      'WARNING: App is under Documents/Desktop/OneDrive — move to C:\\BappiStores to stop database corruption.',
+    )
+  }
+}
+
+function quarantineDb(dbPath) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const backup = `${dbPath}.broken-${stamp}`
+  if (existsSync(dbPath)) {
+    renameSync(dbPath, backup)
+    progress(`Moved broken database to: ${backup}`)
+  }
+  mkdirSync(dbPath, { recursive: true })
+}
+
 function main() {
   banner('Bappi Stores — REPAIR DATABASE')
+  warnOneDrive()
   progress('Stopping any running mongod…')
   try {
     runNodeScript(join(root, 'scripts', 'stop-app.mjs'), [], root)
@@ -50,14 +80,11 @@ function main() {
 
   const dbPath = join(root, 'data', 'mongodb')
   const binCache = join(root, 'data', 'mongodb-bin')
-  const bundledCache = join(root, 'bundled', 'mongodb-cache')
 
   if (existsSync(binCache)) {
     rmSync(binCache, { recursive: true, force: true })
     progress('Cleared data/mongodb-bin cache')
   }
-
-  removeLocks(dbPath)
 
   const mongod = findBundledMongod(root)
   if (!mongod) {
@@ -79,33 +106,40 @@ function main() {
   }
   progress(ver.stdout?.trim().split('\n')[0] || 'mongod OK')
 
-  if (process.argv.includes('--reset-empty') && !dbHasShopData(dbPath)) {
-    if (existsSync(dbPath)) {
-      rmSync(dbPath, { recursive: true, force: true })
-      progress('Removed empty/corrupt data/mongodb folder')
-    }
-  } else if (dbHasShopData(dbPath)) {
-    progress('Repairing shop database (sales kept) — please wait…')
+  if (process.argv.includes('--reset-fresh')) {
+    progress('Fresh database reset (sample data will be re-created on next START)…')
+    quarantineDb(dbPath)
+    progress('Run SETUP.bat or START.bat — seed runs automatically on empty database.')
+    banner('RESET FINISHED')
+    return
+  }
+
+  removeLocks(dbPath)
+
+  if (dbHasShopData(dbPath)) {
+    progress('Repairing shop database — please wait (can take several minutes)…')
     const repair = spawnSync(mongod, ['--dbpath', dbPath, '--repair'], {
       stdio: 'inherit',
       windowsHide: true,
       timeout: 600000,
     })
+    removeLocks(dbPath)
     if (repair.status !== 0) {
+      progress('Repair failed — use RESET-FRESH-DATABASE.bat only if you have NO real sales yet.')
       throw new Error(
         'mongod --repair failed.\n' +
-          'Run BACKUP.bat, then contact IT with repair-log.txt.',
+          'If this is a new PC with only sample data: run RESET-FRESH-DATABASE.bat\n' +
+          'If you have real sales: run BACKUP.bat on another copy, then contact IT.',
       )
     }
-    removeLocks(dbPath)
     progress('Database repair finished')
   } else {
-    progress('No shop database files yet — locks/cache cleared only')
+    progress('No database files yet — locks/cache cleared only')
   }
 
   banner('REPAIR FINISHED')
-  progress('Now double-click START.bat (wait 2–5 minutes on first start).')
-  progress('If it still fails, move the folder to C:\\BappiStores and add Defender exclusion.')
+  progress('Now double-click START.bat.')
+  progress('Strongly recommended: move folder to C:\\BappiStores (not Documents/OneDrive).')
 }
 
 try {
