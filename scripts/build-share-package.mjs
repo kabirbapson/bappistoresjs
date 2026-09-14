@@ -184,9 +184,8 @@ function shopServerEnv() {
   if (!/MONGOMS_STARTUP_TIMEOUT=/m.test(tpl)) {
     tpl += '\nMONGOMS_STARTUP_TIMEOUT=300000\n'
   }
-  const mongod = join(root, 'bundled', 'mongod.exe').replace(/\\/g, '/')
   if (existsSync(join(root, 'bundled', 'mongod.exe')) && !/MONGODB_SYSTEM_BINARY=/m.test(tpl)) {
-    tpl += `MONGODB_SYSTEM_BINARY=${mongod}\n`
+    tpl += 'MONGODB_SYSTEM_BINARY=bundled/mongod.exe\n'
   }
   return tpl
 }

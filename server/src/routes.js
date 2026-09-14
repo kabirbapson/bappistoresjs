@@ -44,7 +44,12 @@ router.post("/maintenance/fix-invoices", async (req, res) => {
 
 router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email });
+  const loginId = String(email || "").trim();
+  let user = loginId ? await User.findOne({ email: loginId }) : null;
+  if (!user && loginId) {
+    const escaped = loginId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    user = await User.findOne({ email: { $regex: `^${escaped}$`, $options: "i" } });
+  }
   if (!user) return res.status(401).json({ message: "Invalid credentials" });
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.status(401).json({ message: "Invalid credentials" });
@@ -329,6 +334,9 @@ router.post("/sales", async (req, res) => {
       }
     } catch (err) {
       await restoreStockFromNewSale(stock.deducted || []);
+      if (sale?._id) {
+        await Sale.findByIdAndDelete(sale._id).catch(() => {});
+      }
       throw err;
     }
 

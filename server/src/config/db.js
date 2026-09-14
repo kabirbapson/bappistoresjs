@@ -82,10 +82,18 @@ function findMongodInTree(dir, maxDepth, depth = 0) {
   return null;
 }
 
+function resolveMongoBinaryPath(envPath) {
+  if (!envPath) return null;
+  if (existsSync(envPath)) return envPath;
+  const projectRoot = path.resolve(__dirname, "../../..");
+  const relative = path.resolve(projectRoot, envPath);
+  if (existsSync(relative)) return relative;
+  return null;
+}
+
 function findSystemMongod() {
-  if (process.env.MONGODB_SYSTEM_BINARY && existsSync(process.env.MONGODB_SYSTEM_BINARY)) {
-    return process.env.MONGODB_SYSTEM_BINARY;
-  }
+  const fromEnv = resolveMongoBinaryPath(process.env.MONGODB_SYSTEM_BINARY);
+  if (fromEnv) return fromEnv;
   const bundled = findBundledMongod();
   if (bundled) return bundled;
   if (process.platform !== "win32") return null;

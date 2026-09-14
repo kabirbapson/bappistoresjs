@@ -50,10 +50,19 @@ function finalizeServerEnv() {
     progress('Generated secure JWT_SECRET in server/.env')
   }
   const mongod = findBundledMongod()
-  if (mongod && !/MONGODB_SYSTEM_BINARY=/m.test(content)) {
-    const line = `MONGODB_SYSTEM_BINARY=${mongod.replace(/\\/g, '/')}\n`
-    content += line
-    progress('Using bundled MongoDB (no download needed)')
+  if (mongod) {
+    const line = `MONGODB_SYSTEM_BINARY=${mongod.replace(/\\/g, '/')}`
+    const match = content.match(/^MONGODB_SYSTEM_BINARY=(.+)$/m)
+    if (!match) {
+      content += `\n${line}\n`
+      progress('Using bundled MongoDB (no download needed)')
+    } else {
+      const configured = match[1].trim()
+      if (!existsSync(configured)) {
+        content = content.replace(/^MONGODB_SYSTEM_BINARY=.*$/m, line)
+        progress('Fixed MongoDB path for this PC (was pointing at build machine)')
+      }
+    }
   }
   writeFileSync(target, content)
 }

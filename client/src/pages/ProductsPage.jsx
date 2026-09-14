@@ -94,7 +94,7 @@ export default function ProductsPage() {
 
   const load = useCallback(() => {
     api
-      .get(`/products?q=${encodeURIComponent(query)}`)
+      .get(`/products?q=${encodeURIComponent(query)}&limit=500`)
       .then((r) => setProducts(r.data.items))
       .catch((err) => toast.error(err.response?.data?.message || 'Could not load products'))
   }, [query])
