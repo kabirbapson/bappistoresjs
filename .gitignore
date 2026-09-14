@@ -10,9 +10,9 @@ lerna-debug.log*
 node_modules
 client/node_modules
 server/node_modules
-data/mongodb
+data/*
+!data/.gitkeep
 server/uploads
-data/mongodb-bin
 
 # All offline share packages (npm run build:share → builds/BappiStores-Share/)
 builds/*

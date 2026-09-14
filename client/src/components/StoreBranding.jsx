@@ -4,6 +4,7 @@ import {
   STORE_NAME,
   STORE_PHONES,
   STORE_RECEIPT_TITLE,
+  STORE_TAGLINE,
 } from '../constants'
 import StoreLogo from './StoreLogo'
 
@@ -17,9 +18,10 @@ export default function StoreBranding({
   dark = false,
   receipt = false,
   align = 'center',
+  showTagline = false,
 }) {
   const alignClass = align === 'left' ? 'text-left' : 'text-center'
-  const compositeReceiptHeader = receipt && STORE_LOGO_INCLUDES_RECEIPT_HEADER && showLogo
+  const logoIncludesFullHeader = showLogo && STORE_LOGO_INCLUDES_RECEIPT_HEADER
   const addressClass = receipt
     ? 'text-[10px] italic leading-tight text-black'
     : dark
@@ -34,8 +36,11 @@ export default function StoreBranding({
   return (
     <div className={alignClass}>
       {showLogo && <StoreLogo className={logoClassName} />}
-      {!compositeReceiptHeader && <p className={nameClassName}>{STORE_NAME}</p>}
-      {!compositeReceiptHeader && !compact && (
+      {!logoIncludesFullHeader && <p className={nameClassName}>{STORE_NAME}</p>}
+      {!logoIncludesFullHeader && showTagline && STORE_TAGLINE && (
+        <p className="mt-1 text-xs italic text-slate-500">{STORE_TAGLINE}</p>
+      )}
+      {!logoIncludesFullHeader && !compact && (
         <div className={`mt-1.5 space-y-0.5 ${addressClass} ${receipt ? 'receipt-addresses' : ''}`}>
           {STORE_ADDRESSES.map((line) => (
             <p key={line} className={receipt ? 'receipt-address-line' : undefined}>
@@ -44,7 +49,7 @@ export default function StoreBranding({
           ))}
         </div>
       )}
-      {!compositeReceiptHeader && showPhones && !compact && (
+      {!logoIncludesFullHeader && showPhones && !compact && (
         <p className={`mt-2 ${phoneClass}`}>{STORE_PHONES.join(' · ')}</p>
       )}
       {receipt && !compact && (

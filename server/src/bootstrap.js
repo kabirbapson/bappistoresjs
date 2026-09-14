@@ -23,8 +23,8 @@ const SAMPLE_CUSTOMERS = [
 
 /** Create or update admin from env (used by `npm run seed` and empty DB bootstrap). */
 export async function upsertAdminFromEnv() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@bappi.com'
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123'
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'ASHUK'
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'ASHMAN'
   const hash = await bcrypt.hash(adminPassword, 10)
   await User.updateOne(
     { email: adminEmail },
@@ -52,8 +52,8 @@ export async function bootstrapIfEmpty() {
   const userCount = await User.countDocuments()
   if (userCount === 0) {
     await upsertAdminFromEnv()
-    const email = process.env.SEED_ADMIN_EMAIL || 'admin@bappi.com'
-    console.log(`Bootstrap: created admin ${email} (password from SEED_ADMIN_PASSWORD or default admin123)`)
+    const email = process.env.SEED_ADMIN_EMAIL || 'ASHUK'
+    console.log(`Bootstrap: created admin ${email} (password from SEED_ADMIN_PASSWORD or default)`)
   }
 
   const saleCount = await Sale.countDocuments()

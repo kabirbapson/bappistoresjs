@@ -22,7 +22,7 @@ OPTION A — Update in the same folder (easiest)
      - server\.env   (optional — keep your settings)
 4. Double-click UPDATE.bat
 5. Double-click START.bat
-6. In the browser: open http://bappistores:5001 (or http://localhost:5001)
+6. In the browser: open http://ashukandashman:5001 (or http://localhost:5001)
 7. Sign in again (admin@bappi.com / your password). Old saved login stops
    working after an update — that fixes blank home page and "401" errors.
 

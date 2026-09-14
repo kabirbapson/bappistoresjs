@@ -28,6 +28,6 @@ if (!existsSync(distIndex)) {
 }
 
 console.log('[2/2] Starting server…')
-console.log('      Browser: http://bappistores:5001')
+console.log('      Browser: http://ashukandashman:5001')
 console.log('      Leave this window open while using the app.\n')
 runNodeScript(serverEntry, [], join(root, 'server'))

@@ -211,10 +211,10 @@ async function main() {
 
   banner('SETUP FINISHED SUCCESSFULLY')
   progress(`Open in browser: ${url}`)
-  progress('Login: admin@bappi.com  /  Password: admin123')
+  progress('Login: ASHUK  /  Password: ASHMAN')
   if (isWin) {
     progress('Next: double-click START.bat every day.')
-    progress('Optional once: CONFIGURE-HOSTNAME.bat as Administrator (for http://bappistores:5001).')
+    progress('Optional once: CONFIGURE-HOSTNAME.bat as Administrator (for http://ashukandashman:5001).')
   } else {
     progress('Next: double-click START.command every day.')
   }

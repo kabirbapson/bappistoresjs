@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import StoreBranding from '../components/StoreBranding'
+import { STORE_LOGIN_USERNAME } from '../constants'
 import { useAuthStore } from '../store'
 
 export default function LoginPage() {
@@ -30,18 +31,19 @@ export default function LoginPage() {
       >
         <StoreBranding
           showLogo
-          logoClassName="mx-auto h-20 w-auto max-w-[200px] object-contain"
-          nameClassName="mt-3 text-lg font-semibold tracking-wide text-slate-900"
+          logoClassName="mx-auto h-auto w-full max-w-[280px] object-contain"
         />
         <p className="text-center text-sm text-slate-500">Admin login</p>
         <p className="text-center text-xs text-amber-800">
           After an update, sign in again even if the app looked logged in before.
         </p>
         <label className="block text-sm">
-          <span className="mb-1 block text-slate-600">Email</span>
+          <span className="mb-1 block text-slate-600">Username</span>
           <input
-            type="email"
+            type="text"
+            autoComplete="username"
             className="w-full glass-input p-2.5"
+            placeholder={STORE_LOGIN_USERNAME}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required

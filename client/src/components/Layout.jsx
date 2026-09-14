@@ -37,7 +37,7 @@ export default function Layout({ children }) {
           </nav>
           <p className="mt-4 text-center text-xs text-slate-400">Inventory & sales</p>
           <p className="mt-1 text-center text-xs text-slate-400">
-            Designed & Developed by <b className="text-sm text-sky-300">Bappi</b>
+            Ashuk &amp; Ashman Beverages POS
           </p>
           <button
             type="button"

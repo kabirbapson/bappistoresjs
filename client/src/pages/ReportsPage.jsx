@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
 import ProductSalesHistoryDialog from '../components/ProductSalesHistoryDialog'
 import api from '../api'
-import { paymentMethodLabel } from '../constants'
+import { paymentMethodLabel, STORE_NAME } from '../constants'
 import { formatDate, formatDateOnly, formatNaira } from '../utils/format'
 
 const PERIODS = [
@@ -118,7 +118,7 @@ export default function ReportsPage() {
     setExporting(true)
     try {
       const lines = []
-      lines.push('Bappi Stores Kano — Financial Report')
+      lines.push(`${STORE_NAME} — Financial Report`)
       lines.push(`Period,${PERIODS.find((p) => p.value === period)?.label || period}`)
       lines.push(`From,${report.from}`)
       lines.push(`To,${report.to}`)

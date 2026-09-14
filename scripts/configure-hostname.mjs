@@ -1,5 +1,5 @@
 /**
- * Maps bappistores → 127.0.0.1 in the system hosts file so you can open http://bappistores:5001
+ * Maps ashukandashman → 127.0.0.1 in the system hosts file so you can open http://ashukandashman:5001
  * Run with --write (admin on Windows / sudo on Mac). Called from install.mjs when possible.
  */
 import { readFileSync, writeFileSync } from 'fs'
@@ -37,7 +37,7 @@ function tryWriteHosts() {
     return { ok: true, already: true }
   }
   const suffix = content.endsWith('\n') ? '' : '\n'
-  writeFileSync(path, `${content}${suffix}# Bappi Stores\n${ENTRY}\n`, 'utf8')
+  writeFileSync(path, `${content}${suffix}# Ashuk & Ashman Beverages\n${ENTRY}\n`, 'utf8')
   return { ok: true, already: false }
 }
 

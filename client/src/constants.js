@@ -1,20 +1,25 @@
-export const STORE_NAME = 'BAPPI STORES - KANO'
+export const STORE_NAME = 'ASHUK & ASHMAN BEVERAGES'
 
-export const STORE_LOGO_SRC = '/BAPP11.png'
+export const STORE_LOGO_SRC = '/ashuk-ashman-logo.png'
 
-/** BAPS1.png already includes name, addresses, and phones — hide those on receipts. */
+/** Logo image includes name, addresses, and phones — hide duplicate text on receipts. */
 export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
 
+export const STORE_TAGLINE = 'Farin Cikinku, Shine Namu...'
+
 export const STORE_ADDRESSES = [
-  'No. 80 Hauwa Marshal behind Malam Kato',
-  'No. 04 Bayan Glo Office - Nakowa Plaza',
+  'Shop No. 17 — NAKOWA Plaza Bayan Glo Office, Kano',
+  'Shop No. 67 — Hauwa Sani Marshal Plaza, Malam Kato, Kano',
 ]
 
-export const STORE_PHONES = ['08084277233', '07065761433']
+export const STORE_PHONES = ['08144422218', '07065381212']
 
 export const STORE_RECEIPT_TITLE = 'SALES INVOICE'
 
 export const STORE_RECEIPT_FOOTER_ARABIC = 'بالتوفيق والسلامة'
+
+/** Default admin after SETUP / seed (login field is stored as user email). */
+export const STORE_LOGIN_USERNAME = 'ASHUK'
 
 /** Default thermal roll — Xprinter XP-80T (80mm). */
 export const RECEIPT_PAPER_MM_DEFAULT = 80
