@@ -3,9 +3,10 @@ import toast from 'react-hot-toast'
 import api from '../api'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
-import StoreLogo from '../components/StoreLogo'
-import { STORE_ADDRESSES, STORE_NAME, STORE_PHONES } from '../constants'
+import StoreBranding from '../components/StoreBranding'
+import { RECEIPT_PAPER_OPTIONS } from '../constants'
 import { formatDateOnly, formatNaira } from '../utils/format'
+import { getReceiptPaperMm, printThermalReceipt, setReceiptPaperMm } from '../utils/print'
 
 export default function CloseoutPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -31,6 +32,7 @@ export default function CloseoutPage() {
 
   // Printable slip state
   const [printableRecord, setPrintableRecord] = useState(null)
+  const [printPaperMm, setPrintPaperMm] = useState(() => getReceiptPaperMm())
 
   const loadPreview = useCallback(async () => {
     setLoading(true)
@@ -380,107 +382,15 @@ export default function CloseoutPage() {
       {/* Modal: Thermal Z-Report Slip Preview & Print */}
       {printableRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="glass-panel flex max-h-[92vh] w-full max-w-sm flex-col rounded-2xl bg-white p-5 shadow-2xl overflow-y-auto">
-            {/* Printable Thermal Area */}
-            <div id="thermal-closeout-slip" className="font-mono text-xs text-slate-900 space-y-2">
-              <div className="text-center pb-2 border-b border-dashed border-slate-400">
-                <StoreLogo className="h-8 w-auto mx-auto mb-1" />
-                <p className="font-bold text-sm tracking-tight">{STORE_NAME}</p>
-                <p className="text-[10px] text-slate-500">{STORE_ADDRESSES[0]}</p>
-                <p className="text-[10px] text-slate-500">Tel: {STORE_PHONES.join(', ')}</p>
-                <p className="mt-2 text-xs font-bold uppercase tracking-widest bg-slate-900 text-white py-0.5">
-                  END-OF-DAY Z-REPORT
-                </p>
-              </div>
-
-              <div className="text-[11px] space-y-0.5 pt-1">
-                <div className="flex justify-between">
-                  <span>DATE:</span>
-                  <span>{formatDateOnly(printableRecord.date)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>TIME:</span>
-                  <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>CLOSED BY:</span>
-                  <span>{printableRecord.closedBy || 'Admin'}</span>
-                </div>
-              </div>
-
-              <div className="border-t border-dashed border-slate-300 pt-2 space-y-1 text-[11px]">
-                <p className="font-bold uppercase tracking-wider">SALES SUMMARY</p>
-                <div className="flex justify-between">
-                  <span>Total Sales:</span>
-                  <span className="font-bold">{formatNaira(printableRecord.totalSales)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>POS / Card:</span>
-                  <span>{formatNaira(printableRecord.posTotal || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Bank Transfers:</span>
-                  <span>{formatNaira(printableRecord.transferTotal || 0)}</span>
-                </div>
-              </div>
-
-              <div className="border-t border-dashed border-slate-300 pt-2 space-y-1 text-[11px]">
-                <p className="font-bold uppercase tracking-wider">CASH DRAWER RECONCILIATION</p>
-                <div className="flex justify-between">
-                  <span>Opening Float:</span>
-                  <span>+{formatNaira(printableRecord.openingCash || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Cash Sales:</span>
-                  <span>+{formatNaira(printableRecord.salesCash || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Cash Repayments:</span>
-                  <span>+{formatNaira(printableRecord.debtPaymentsCash || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Cash Expenses:</span>
-                  <span>-{formatNaira(printableRecord.cashExpenses || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Cash Borrowed:</span>
-                  <span>-{formatNaira(printableRecord.cashBorrowed || 0)}</span>
-                </div>
-
-                <div className="flex justify-between border-t border-slate-300 pt-1 font-bold">
-                  <span>EXPECTED CASH:</span>
-                  <span>{formatNaira(printableRecord.expectedCash || 0)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-sm">
-                  <span>COUNTED CASH:</span>
-                  <span>{formatNaira(printableRecord.actualCash || 0)}</span>
-                </div>
-                <div className="flex justify-between border-t border-dashed border-slate-300 pt-1 font-bold">
-                  <span>VARIANCE:</span>
-                  <span>{printableRecord.difference === 0 ? 'BALANCED' : `${printableRecord.difference > 0 ? '+' : ''}${formatNaira(printableRecord.difference)}`}</span>
-                </div>
-              </div>
-
-              {printableRecord.notes && (
-                <div className="border-t border-dashed border-slate-300 pt-2 text-[10px] text-slate-600">
-                  <p className="font-bold">NOTES:</p>
-                  <p>{printableRecord.notes}</p>
-                </div>
-              )}
-
-              <div className="border-t border-dashed border-slate-400 pt-6 text-center text-[10px] space-y-4">
-                <div>
-                  <div className="w-32 border-b border-slate-400 mx-auto mb-1"></div>
-                  <p>Cashier Signature</p>
-                </div>
-                <div>
-                  <div className="w-32 border-b border-slate-400 mx-auto mb-1"></div>
-                  <p>Manager Signature</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-3">
+          <div className="glass-panel flex max-h-[92vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex justify-center p-4"><div className="thermal-receipt-preview"><CloseoutSlipBody record={printableRecord} /></div></div>
+            <div className="no-print space-y-3 border-t p-4">
+              <label className="block text-xs font-medium text-slate-600">Paper width
+                <select className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" value={printPaperMm} onChange={(e) => { const mm = Number(e.target.value); setPrintPaperMm(mm); setReceiptPaperMm(mm) }}>
+                  {RECEIPT_PAPER_OPTIONS.map((option) => <option key={option.mm} value={option.mm}>{option.label}</option>)}
+                </select>
+              </label>
+              <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setPrintableRecord(null)}
@@ -490,15 +400,40 @@ export default function CloseoutPage() {
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={printThermalReceipt}
                 className="rounded-lg bg-emerald-700 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-emerald-800"
               >
                 🖨 Print Z-Report
               </button>
+              </div>
             </div>
           </div>
+          <div id="thermal-receipt-print" className="thermal-receipt-print" aria-hidden="true"><CloseoutSlipBody record={printableRecord} /></div>
         </div>
       )}
     </PageShell>
   )
+}
+
+function CloseoutSlipBody({ record }) {
+  const printedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  return (
+    <article className="thermal-receipt mx-auto space-y-2 font-mono text-xs leading-snug text-black">
+      <header className="border-b border-dashed border-black pb-2 text-center">
+        <StoreBranding showLogo receipt logoClassName="receipt-logo mx-auto mb-2" />
+        <p className="mt-1.5 text-xs font-bold uppercase tracking-wide">End-of-day Z-report</p>
+      </header>
+      <section className="space-y-0.5 border-b border-dashed border-black pb-2 text-[11px]">
+        <Line label="Date" value={formatDateOnly(record.date)} /><Line label="Time" value={printedAt} /><Line label="Closed by" value={record.closedBy || 'Admin'} />
+      </section>
+      <section className="space-y-1 border-b border-dashed border-black pb-2 text-[11px]"><p className="font-bold uppercase">Sales summary</p><Line label="Total sales" value={formatNaira(record.totalSales)} strong /><Line label="POS / Card" value={formatNaira(record.posTotal || 0)} /><Line label="Bank transfers" value={formatNaira(record.transferTotal || 0)} /></section>
+      <section className="space-y-1 border-b border-dashed border-black pb-2 text-[11px]"><p className="font-bold uppercase">Cash drawer reconciliation</p><Line label="Opening float" value={`+${formatNaira(record.openingCash || 0)}`} /><Line label="Cash sales" value={`+${formatNaira(record.salesCash || 0)}`} /><Line label="Cash repayments" value={`+${formatNaira(record.debtPaymentsCash || 0)}`} /><Line label="Cash expenses" value={`-${formatNaira(record.cashExpenses || 0)}`} /><Line label="Cash borrowed" value={`-${formatNaira(record.cashBorrowed || 0)}`} /><div className="border-t border-dotted border-black pt-1"><Line label="Expected cash" value={formatNaira(record.expectedCash || 0)} strong /></div><Line label="Counted cash" value={formatNaira(record.actualCash || 0)} strong /><div className="border-t border-dotted border-black pt-1"><Line label="Variance" value={record.difference === 0 ? 'BALANCED' : `${record.difference > 0 ? '+' : ''}${formatNaira(record.difference)}`} strong /></div></section>
+      {record.notes && <section className="border-b border-dashed border-black pb-2 text-[10px]"><p className="font-bold">NOTES:</p><p>{record.notes}</p></section>}
+      <footer className="space-y-4 pt-4 text-center text-[10px]"><div><div className="mx-auto mb-1 w-24 border-b border-black" /><p>Cashier Signature</p></div><div><div className="mx-auto mb-1 w-24 border-b border-black" /><p>Manager Signature</p></div></footer>
+    </article>
+  )
+}
+
+function Line({ label, value, strong = false }) {
+  return <div className={`flex justify-between gap-2 ${strong ? 'font-bold' : ''}`}><span>{label}:</span><span className="text-right">{value}</span></div>
 }
