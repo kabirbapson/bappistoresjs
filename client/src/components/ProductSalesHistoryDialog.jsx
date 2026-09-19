@@ -48,7 +48,15 @@ export default function ProductSalesHistoryDialog({
     if (!data?.lines?.length) return
     const name = data.product?.name || productName || 'product'
     const lines = [
+<<<<<<< Updated upstream
       `Ashuk & Ashman Beverages — Product sales: ${name}`,
+=======
+<<<<<<< HEAD
+      `${STORE_NAME} — Product sales: ${name}`,
+=======
+      `Ashuk & Ashman Beverages — Product sales: ${name}`,
+>>>>>>> ca485d2 (codex update)
+>>>>>>> Stashed changes
       `Added,${data.product?.addedAt || ''}`,
       `Scope,${scopeLabel(scope)}`,
       `Total added to stock,${data.product?.totalAdded ?? ''}`,

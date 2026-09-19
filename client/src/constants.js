@@ -1,13 +1,39 @@
+<<<<<<< Updated upstream
+export const STORE_NAME = 'ASHUK & ASHMAN'
+=======
+<<<<<<< HEAD
+export const STORE_NAME = 'ASHUK & ASHMAN BEVERAGES'
+>>>>>>> Stashed changes
+
+export const STORE_LOGO_SRC = '/newLogo.jpg'
+
+<<<<<<< Updated upstream
+/** The existing logo already includes the brand styling; keep it untouched. */
+=======
+/** Logo image includes name, addresses, and phones — hide duplicate text on receipts. */
+=======
 export const STORE_NAME = 'ASHUK & ASHMAN'
 
 export const STORE_LOGO_SRC = '/newLogo.jpg'
 
 /** The existing logo already includes the brand styling; keep it untouched. */
+>>>>>>> ca485d2 (codex update)
+>>>>>>> Stashed changes
 export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
 
 export const STORE_ADDRESSES = [
+<<<<<<< Updated upstream
   'Shop No. 67 | Hauwa Sani Marshal Plaza, Malam Kato, Kano.',
   'Shop No. 17 | NAKOWA Plaza Bayan Glo Office, Kano.',
+=======
+<<<<<<< HEAD
+  'Shop No. 67 — Hauwa Sani Marshal Plaza, Malam Kato',
+  'Shop No. 17 — NAKOWA Plaza Bayan Glo Office, Kano',
+=======
+  'Shop No. 67 | Hauwa Sani Marshal Plaza, Malam Kato, Kano.',
+  'Shop No. 17 | NAKOWA Plaza Bayan Glo Office, Kano.',
+>>>>>>> ca485d2 (codex update)
+>>>>>>> Stashed changes
 ]
 
 export const STORE_PHONES = ['07066381212', '08145173573']

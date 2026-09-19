@@ -118,7 +118,11 @@ export default function ReportsPage() {
     setExporting(true)
     try {
       const lines = []
+<<<<<<< Updated upstream
       lines.push('Ashuk & Ashman Beverages, Kano — Financial Report')
+=======
+      lines.push('Bappi Stores Kano — Financial Report')
+>>>>>>> Stashed changes
       lines.push(`Period,${PERIODS.find((p) => p.value === period)?.label || period}`)
       lines.push(`From,${report.from}`)
       lines.push(`To,${report.to}`)
