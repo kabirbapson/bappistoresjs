@@ -39,9 +39,10 @@ export default function Layout({ children }) {
             ))}
           </nav>
           <p className="mt-4 text-center text-xs text-slate-400">Inventory & sales</p>
-          <p className="mt-1 text-center text-xs text-slate-100">
-          ASHUK & ASHMAN BEVERAGES LTD.
+          <p className="mt-1 whitespace-nowrap text-center text-[10px] font-medium tracking-tight text-slate-100">
+            ASHUK & ASHMAN BEVERAGES LTD.
           </p>
+          <p className="mt-0.5 text-center text-[9px] text-slate-500">Designed by Bappi</p>
           {/* <button
             type="button"
             onClick={() => setBackupOpen(true)}
