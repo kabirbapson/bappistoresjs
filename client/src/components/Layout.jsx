@@ -39,16 +39,16 @@ export default function Layout({ children }) {
             ))}
           </nav>
           <p className="mt-4 text-center text-xs text-slate-400">Inventory & sales</p>
-          <p className="mt-1 text-center text-xs text-slate-400">
-            Ashuk &amp; Ashman Beverages POS
+          <p className="mt-1 text-center text-xs text-slate-100">
+          ASHUK & ASHMAN BEVERAGES LTD.
           </p>
-          <button
+          {/* <button
             type="button"
             onClick={() => setBackupOpen(true)}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white"
           >
             💾 Backup Database
-          </button>
+          </button> */}
           <button
             type="button"
             onClick={logout}

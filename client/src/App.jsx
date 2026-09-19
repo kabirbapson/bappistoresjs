@@ -12,7 +12,6 @@ import ReportsPage from './pages/ReportsPage'
 import SalesPage from './pages/SalesPage'
 import ReceiveStockPage from './pages/ReceiveStockPage'
 import ExpensesPage from './pages/ExpensesPage'
-import RemindersPage from './pages/RemindersPage'
 import CloseoutPage from './pages/CloseoutPage'
 
 function withLayout(Page) {
@@ -42,7 +41,6 @@ export default function App() {
       <Route path="/debts" element={withLayout(DebtsPage)} />
       <Route path="/credit" element={withLayout(DebtsPage)} />
       <Route path="/expenses" element={withLayout(ExpensesPage)} />
-      <Route path="/reminders" element={withLayout(RemindersPage)} />
       <Route path="/closeout" element={withLayout(CloseoutPage)} />
       <Route path="/reports" element={withLayout(ReportsPage)} />
       <Route path="*" element={withLayout(DashboardPage)} />

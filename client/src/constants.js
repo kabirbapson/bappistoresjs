@@ -8,11 +8,11 @@ export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
 export const STORE_TAGLINE = 'Farin Cikinku, Shine Namu...'
 
 export const STORE_ADDRESSES = [
+  'Shop No. 67 — Hauwa Sani Marshal Plaza, Malam Kato',
   'Shop No. 17 — NAKOWA Plaza Bayan Glo Office, Kano',
-  'Shop No. 67 — Hauwa Sani Marshal Plaza, Malam Kato, Kano',
 ]
 
-export const STORE_PHONES = ['08144422218', '07065381212']
+export const STORE_PHONES = ['07066381212', '08145173573']
 
 export const STORE_RECEIPT_TITLE = 'SALES INVOICE'
 
@@ -33,14 +33,14 @@ export const RECEIPT_PAPER_OPTIONS = [
 
 export const NAV_ITEMS = [
   ['Dashboard', '/'],
-  ['Make Sales', '/sales'],
+  ['New Sales', '/sales'],
   ['Products', '/products'],
-  ['Receive Stock', '/receive-stock'],
   ['Customers', '/customers'],
   ['Invoices', '/invoices'],
   ['Credit', '/credit'],
   ['Expenses', '/expenses'],
   ['Shift Closeout', '/closeout'],
+  ['Receive Stock', '/receive-stock'],
   ['Reports', '/reports'],
 ]
 

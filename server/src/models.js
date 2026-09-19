@@ -121,24 +121,6 @@ const expenseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const businessNoteSchema = new mongoose.Schema(
-  {
-    title: { type: String, required: true },
-    description: String,
-    priority: { type: String, enum: ["urgent", "normal", "low"], default: "normal" },
-    tag: {
-      type: String,
-      enum: ["Distributor/Supply", "Maintenance", "Financial", "General"],
-      default: "General",
-    },
-    dueDate: Date,
-    status: { type: String, enum: ["pending", "completed"], default: "pending" },
-    completedAt: Date,
-    recordedBy: String,
-  },
-  { timestamps: true }
-);
-
 const shiftCloseoutSchema = new mongoose.Schema(
   {
     date: { type: Date, default: Date.now },
@@ -168,6 +150,5 @@ export const Payment = mongoose.model("Payment", paymentSchema);
 export const StockLog = mongoose.model("StockLog", stockLogSchema);
 export const StockPurchase = mongoose.model("StockPurchase", stockPurchaseSchema);
 export const Expense = mongoose.model("Expense", expenseSchema);
-export const BusinessNote = mongoose.model("BusinessNote", businessNoteSchema);
 export const ShiftCloseout = mongoose.model("ShiftCloseout", shiftCloseoutSchema);
 

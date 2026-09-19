@@ -22,7 +22,6 @@ import { LOW_STOCK_THRESHOLD, MAX_PRODUCTS_LIMIT, MAX_SALES_LIMIT } from "./cons
 import { markShopHasRealData } from "./shopDataMarker.js";
 import { productImageUpload } from "./productUpload.js";
 import {
-  BusinessNote,
   Customer,
   Debt,
   Expense,
@@ -1005,82 +1004,6 @@ router.delete("/expenses/:id", async (req, res) => {
 });
 
 // ==========================================
-// 3. Business Reminders & Notes (Dedicated Task Manager)
-// ==========================================
-router.get("/reminders", async (req, res) => {
-  try {
-    const { status } = req.query;
-    const filter = {};
-    if (status && status !== "all") {
-      filter.status = status;
-    }
-    const items = await BusinessNote.find(filter)
-      .sort({ status: 1, priority: -1, dueDate: 1, createdAt: -1 })
-      .lean();
-
-    const pendingCount = items.filter((i) => i.status === "pending").length;
-    const urgentCount = items.filter((i) => i.status === "pending" && i.priority === "urgent").length;
-
-    res.json({
-      items,
-      pendingCount,
-      urgentCount,
-    });
-  } catch (err) {
-    console.error("GET /reminders failed:", err);
-    res.status(500).json({ message: "Failed to load reminders" });
-  }
-});
-
-router.post("/reminders", async (req, res) => {
-  try {
-    const { title, description, priority = "normal", tag = "General", dueDate } = req.body;
-    if (!title || !title.trim()) {
-      return res.status(400).json({ message: "Reminder title is required" });
-    }
-    const note = await BusinessNote.create({
-      title: title.trim(),
-      description,
-      priority,
-      tag,
-      dueDate: dueDate ? new Date(dueDate) : null,
-      status: "pending",
-      recordedBy: req.user?.email || "Admin",
-    });
-    res.status(201).json(note);
-  } catch (err) {
-    console.error("POST /reminders failed:", err);
-    res.status(500).json({ message: "Failed to create reminder" });
-  }
-});
-
-router.patch("/reminders/:id/toggle", async (req, res) => {
-  try {
-    const note = await BusinessNote.findById(req.params.id);
-    if (!note) return res.status(404).json({ message: "Reminder not found" });
-
-    note.status = note.status === "completed" ? "pending" : "completed";
-    note.completedAt = note.status === "completed" ? new Date() : null;
-    await note.save();
-
-    res.json(note);
-  } catch (err) {
-    console.error("PATCH /reminders/:id/toggle failed:", err);
-    res.status(500).json({ message: "Failed to update reminder" });
-  }
-});
-
-router.delete("/reminders/:id", async (req, res) => {
-  try {
-    await BusinessNote.findByIdAndDelete(req.params.id);
-    res.json({ message: "Reminder deleted" });
-  } catch (err) {
-    console.error("DELETE /reminders/:id failed:", err);
-    res.status(500).json({ message: "Failed to delete reminder" });
-  }
-});
-
-// ==========================================
 // 4. Shift Closeout (Z-Report & Register Balancing)
 // ==========================================
 router.get("/closeout/preview", async (req, res) => {
@@ -1220,7 +1143,6 @@ router.get("/backup/download", async (req, res) => {
       stockLogs,
       stockPurchases,
       expenses,
-      businessNotes,
       shiftCloseouts,
     ] = await Promise.all([
       User.find({}, { password: 0 }).lean(),
@@ -1232,7 +1154,6 @@ router.get("/backup/download", async (req, res) => {
       StockLog.find().lean(),
       StockPurchase.find().lean(),
       Expense.find().lean(),
-      BusinessNote.find().lean(),
       ShiftCloseout.find().lean(),
     ]);
 
@@ -1250,7 +1171,6 @@ router.get("/backup/download", async (req, res) => {
         stockLogs,
         stockPurchases,
         expenses,
-        businessNotes,
         shiftCloseouts,
       },
     };
@@ -1276,7 +1196,7 @@ router.post("/backup/local", async (req, res) => {
 
     mkdirSync(dest, { recursive: true });
 
-    const [products, customers, sales, debts, payments, stockPurchases, expenses, businessNotes, shiftCloseouts] = await Promise.all([
+    const [products, customers, sales, debts, payments, stockPurchases, expenses, shiftCloseouts] = await Promise.all([
       Product.find().lean(),
       Customer.find().lean(),
       Sale.find().lean(),
@@ -1284,7 +1204,6 @@ router.post("/backup/local", async (req, res) => {
       Payment.find().lean(),
       StockPurchase.find().lean(),
       Expense.find().lean(),
-      BusinessNote.find().lean(),
       ShiftCloseout.find().lean(),
     ]);
 
@@ -1300,7 +1219,6 @@ router.post("/backup/local", async (req, res) => {
           payments,
           stockPurchases,
           expenses,
-          businessNotes,
           shiftCloseouts,
         },
         null,
