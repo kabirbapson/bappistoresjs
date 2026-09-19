@@ -17,7 +17,7 @@ export default function Layout({ children }) {
               dark
               showPhones={false}
               logoClassName="mx-auto h-auto w-full max-w-[240px] object-contain"
-              nameClassName="mt-2 text-xs font-bold leading-tight tracking-wide text-slate-100"
+              nameClassName="mt-2 text-xs font-bold leading-tight tracking-wide text-white"
             />
           </div>
           <nav className="mt-4 flex-1 space-y-1">
@@ -27,7 +27,7 @@ export default function Layout({ children }) {
                 to={path}
                 className={`block rounded-lg px-3 py-2 text-xl font-bold transition-all ${
                   location.pathname === path
-                    ? 'bg-emerald-600 text-white shadow-sm'
+                    ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
@@ -35,10 +35,7 @@ export default function Layout({ children }) {
               </Link>
             ))}
           </nav>
-          <p className="mt-4 text-center text-xs text-slate-400">Inventory & sales</p>
-          <p className="mt-1 text-center text-xs text-slate-400">
-            Designed & Developed by <b className="text-sm text-sky-300">Bappi</b>
-          </p>
+          <p className="mt-4 text-center text-xs text-slate-400">Beverage inventory &amp; sales</p>
           <button
             type="button"
             onClick={logout}

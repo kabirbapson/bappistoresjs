@@ -118,7 +118,7 @@ export default function ReportsPage() {
     setExporting(true)
     try {
       const lines = []
-      lines.push('Bappi Stores Kano — Financial Report')
+      lines.push('Ashuk & Ashman Beverages, Kano — Financial Report')
       lines.push(`Period,${PERIODS.find((p) => p.value === period)?.label || period}`)
       lines.push(`From,${report.from}`)
       lines.push(`To,${report.to}`)
@@ -170,7 +170,7 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `bappi-stores-report-${period}.csv`
+      a.download = `ashuk-ashman-beverages-report-${period}.csv`
       a.click()
       URL.revokeObjectURL(url)
       toast.success('Report downloaded')

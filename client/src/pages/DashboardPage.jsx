@@ -121,7 +121,7 @@ export default function DashboardPage() {
                     to={to}
                     className={
                       primary
-                        ? 'rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-400'
+                        ? 'rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 shadow-md hover:bg-slate-100'
                         : 'rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600'
                     }
                   >

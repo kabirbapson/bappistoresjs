@@ -1,16 +1,16 @@
-export const STORE_NAME = 'BAPPI STORES - KANO'
+export const STORE_NAME = 'ASHUK & ASHMAN'
 
-export const STORE_LOGO_SRC = '/BAPP11.png'
+export const STORE_LOGO_SRC = '/newLogo.jpg'
 
-/** BAPS1.png already includes name, addresses, and phones — hide those on receipts. */
+/** The existing logo already includes the brand styling; keep it untouched. */
 export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
 
 export const STORE_ADDRESSES = [
-  'No. 80 Hauwa Marshal behind Malam Kato',
-  'No. 04 Bayan Glo Office - Nakowa Plaza',
+  'Shop No. 67 | Hauwa Sani Marshal Plaza, Malam Kato, Kano.',
+  'Shop No. 17 | NAKOWA Plaza Bayan Glo Office, Kano.',
 ]
 
-export const STORE_PHONES = ['08084277233', '07065761433']
+export const STORE_PHONES = ['07066381212', '08145173573']
 
 export const STORE_RECEIPT_TITLE = 'SALES INVOICE'
 
