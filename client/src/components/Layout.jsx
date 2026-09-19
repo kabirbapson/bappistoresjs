@@ -1,12 +1,9 @@
-import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { NAV_ITEMS } from '../constants'
 import { useAuthStore } from '../store'
 import StoreBranding from './StoreBranding'
-import BackupModal from './BackupModal'
 
 export default function Layout({ children }) {
-  const [backupOpen, setBackupOpen] = useState(false)
   const logout = useAuthStore((s) => s.logout)
   const location = useLocation()
 
@@ -20,7 +17,7 @@ export default function Layout({ children }) {
               dark
               showPhones={false}
               logoClassName="mx-auto h-auto w-full max-w-[240px] object-contain"
-              nameClassName="mt-2 text-xs font-bold leading-tight tracking-wide text-slate-100"
+              nameClassName="mt-2 text-xs font-bold leading-tight tracking-wide text-white"
             />
           </div>
           <nav className="mt-4 flex-1 space-y-1">
@@ -30,7 +27,7 @@ export default function Layout({ children }) {
                 to={path}
                 className={`block rounded-lg px-3 py-2 text-xl font-bold transition-all ${
                   location.pathname === path
-                    ? 'bg-emerald-600 text-white shadow-sm'
+                    ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
@@ -38,29 +35,17 @@ export default function Layout({ children }) {
               </Link>
             ))}
           </nav>
-          <p className="mt-4 text-center text-xs text-slate-400">Inventory & sales</p>
-          <p className="mt-1 text-center text-xs text-slate-100">
-          ASHUK & ASHMAN BEVERAGES LTD.
-          </p>
-          {/* <button
-            type="button"
-            onClick={() => setBackupOpen(true)}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white"
-          >
-            💾 Backup Database
-          </button> */}
+          <p className="mt-4 text-center text-xs text-slate-400">Beverage inventory &amp; sales</p>
           <button
             type="button"
             onClick={logout}
-            className="mt-2 w-full rounded-lg bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
+            className="mt-3 w-full rounded-lg bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
           >
             Logout
           </button>
         </aside>
         <main className="flex min-h-0 min-w-0 flex-col overflow-hidden">{children}</main>
       </div>
-
-      <BackupModal open={backupOpen} onClose={() => setBackupOpen(false)} />
     </div>
   )
 }
