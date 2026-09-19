@@ -4,9 +4,10 @@ import api from '../api'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
 import PasswordDeleteDialog from '../components/PasswordDeleteDialog'
-import StoreLogo from '../components/StoreLogo'
-import { STORE_ADDRESSES, STORE_NAME, STORE_PHONES } from '../constants'
+import StoreBranding from '../components/StoreBranding'
+import { RECEIPT_PAPER_OPTIONS } from '../constants'
 import { formatDateOnly, formatNaira } from '../utils/format'
+import { getReceiptPaperMm, printThermalReceipt, setReceiptPaperMm } from '../utils/print'
 
 const PERIODS = [
   { value: 'all', label: 'All time' },
@@ -30,6 +31,7 @@ export default function ReceiveStockPage() {
   const [payAmount, setPayAmount] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [voucherTarget, setVoucherTarget] = useState(null)
+  const [voucherPaperMm, setVoucherPaperMm] = useState(() => getReceiptPaperMm())
 
   // New Delivery Form state
   const [supplierName, setSupplierName] = useState('')
@@ -664,75 +666,30 @@ export default function ReceiveStockPage() {
       {/* Modal: Delivery Voucher Preview */}
       {voucherTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="glass-panel flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white p-6 shadow-2xl overflow-y-auto">
-            <div className="flex justify-between items-start border-b border-slate-200 pb-4">
-              <div>
-                <StoreLogo className="h-10 w-auto" />
-                <h4 className="mt-2 text-lg font-bold text-slate-900">{STORE_NAME}</h4>
-                <p className="text-xs text-slate-500">{STORE_ADDRESSES[0]}</p>
-                <p className="text-xs text-slate-500">Tel: {STORE_PHONES.join(', ')}</p>
-              </div>
-              <div className="text-right">
-                <span className="inline-block rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-900 uppercase">
-                  Delivery Voucher
-                </span>
-                <p className="mt-1 text-xs text-slate-500">{formatDateOnly(voucherTarget.date)}</p>
+          <div className="glass-panel flex max-h-[90vh] w-full max-w-lg flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex justify-center p-4">
+              <div className="thermal-receipt-preview">
+                <DeliveryVoucherBody voucher={voucherTarget} />
               </div>
             </div>
-
-            <div className="mt-4 text-xs space-y-1">
-              <p><span className="font-semibold text-slate-700">Supplier:</span> {voucherTarget.supplierName}</p>
-              {voucherTarget.notes && <p><span className="font-semibold text-slate-700">Notes:</span> {voucherTarget.notes}</p>}
-            </div>
-
-            <table className="mt-4 w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-300 font-bold">
-                  <th className="py-2">Item</th>
-                  <th className="py-2 text-center">Qty</th>
-                  <th className="py-2 text-right">Cost</th>
-                  <th className="py-2 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {voucherTarget.items?.map((it, i) => (
-                  <tr key={i}>
-                    <td className="py-2 font-medium">{it.productName}</td>
-                    <td className="py-2 text-center">{it.quantity}</td>
-                    <td className="py-2 text-right">{formatNaira(it.costPrice)}</td>
-                    <td className="py-2 text-right font-semibold">{formatNaira(it.totalCost)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="mt-4 border-t border-slate-200 pt-3 text-xs space-y-1.5">
-              <div className="flex justify-between font-bold text-sm">
-                <span>Grand Total:</span>
-                <span>{formatNaira(voucherTarget.totalAmount)}</span>
-              </div>
-              <div className="flex justify-between text-emerald-800">
-                <span>Amount Paid:</span>
-                <span>{formatNaira(voucherTarget.amountPaid)}</span>
-              </div>
-              <div className="flex justify-between font-bold text-rose-700">
-                <span>Balance Owed:</span>
-                <span>{formatNaira(voucherTarget.balance || 0)}</span>
-              </div>
-            </div>
-
-            <div className="mt-8 flex justify-between border-t border-dashed border-slate-300 pt-4 text-center text-[10px] text-slate-500">
-              <div>
-                <div className="w-28 border-b border-slate-400 mb-1"></div>
-                <p>Received By</p>
-              </div>
-              <div>
-                <div className="w-28 border-b border-slate-400 mb-1"></div>
-                <p>Dealer Signature</p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="no-print space-y-3 border-t p-4">
+              <label className="block text-xs font-medium text-slate-600">
+                Paper width
+                <select
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"
+                  value={voucherPaperMm}
+                  onChange={(e) => {
+                    const mm = Number(e.target.value)
+                    setVoucherPaperMm(mm)
+                    setReceiptPaperMm(mm)
+                  }}
+                >
+                  {RECEIPT_PAPER_OPTIONS.map((option) => (
+                    <option key={option.mm} value={option.mm}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setVoucherTarget(null)}
@@ -742,12 +699,16 @@ export default function ReceiveStockPage() {
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={printThermalReceipt}
                 className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow hover:bg-emerald-800"
               >
                 🖨 Print Voucher
               </button>
+              </div>
             </div>
+          </div>
+          <div id="thermal-receipt-print" className="thermal-receipt-print" aria-hidden="true">
+            <DeliveryVoucherBody voucher={voucherTarget} />
           </div>
         </div>
       )}
@@ -765,5 +726,44 @@ export default function ReceiveStockPage() {
         onConfirm={handleDelete}
       />
     </PageShell>
+  )
+}
+
+function DeliveryVoucherBody({ voucher }) {
+  return (
+    <article className="thermal-receipt mx-auto font-mono leading-snug text-black">
+      <header className="border-b border-dashed border-black pb-2 text-center">
+        <StoreBranding showLogo receipt logoClassName="receipt-logo mx-auto mb-2" />
+        <p className="mt-1.5 text-xs font-bold uppercase tracking-wide">Delivery Voucher</p>
+      </header>
+
+      <section className="border-b border-dashed border-black py-2 text-xs">
+        <div className="flex justify-between"><span>Date</span><span>{formatDateOnly(voucher.date)}</span></div>
+        <div className="mt-1"><span className="font-semibold">Supplier: </span>{voucher.supplierName}</div>
+        {voucher.notes && <div className="mt-1"><span className="font-semibold">Notes: </span>{voucher.notes}</div>}
+      </section>
+
+      <table className="w-full border-collapse py-2 text-xs">
+        <thead><tr className="border-b border-black"><th className="py-1 text-left">Item</th><th className="w-8 py-1 text-center">Qty</th><th className="w-14 py-1 text-right">Cost</th><th className="w-14 py-1 text-right">Total</th></tr></thead>
+        <tbody>
+          {voucher.items?.map((item, index) => (
+            <tr key={index} className="border-b border-dotted border-slate-400">
+              <td className="py-1 pr-1">{item.productName}</td><td className="py-1 text-center">{item.quantity}</td><td className="py-1 text-right">{formatNaira(item.costPrice)}</td><td className="py-1 text-right">{formatNaira(item.totalCost)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <section className="border-t border-double border-black pt-2 text-xs">
+        <div className="flex justify-between text-sm font-bold"><span>GRAND TOTAL</span><span>{formatNaira(voucher.totalAmount)}</span></div>
+        <div className="mt-1 flex justify-between"><span>Amount paid</span><span>{formatNaira(voucher.amountPaid)}</span></div>
+        <div className="mt-1 flex justify-between font-bold"><span>Balance owed</span><span>{formatNaira(voucher.balance || 0)}</span></div>
+      </section>
+
+      <footer className="mt-5 flex justify-between border-t border-dashed border-black pt-4 text-center text-[10px]">
+        <div><div className="mb-1 w-24 border-b border-black" /><p>Received By</p></div>
+        <div><div className="mb-1 w-24 border-b border-black" /><p>Dealer Signature</p></div>
+      </footer>
+    </article>
   )
 }
