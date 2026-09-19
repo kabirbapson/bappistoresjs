@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import api from '../api'
-import { PRODUCT_HISTORY_SCOPES } from '../constants'
+import { PRODUCT_HISTORY_SCOPES, STORE_NAME } from '../constants'
 import { formatDate, formatDateOnly, formatNaira } from '../utils/format'
 
 function scopeLabel(scope) {
@@ -48,15 +48,7 @@ export default function ProductSalesHistoryDialog({
     if (!data?.lines?.length) return
     const name = data.product?.name || productName || 'product'
     const lines = [
-<<<<<<< Updated upstream
-      `Ashuk & Ashman Beverages — Product sales: ${name}`,
-=======
-<<<<<<< HEAD
       `${STORE_NAME} — Product sales: ${name}`,
-=======
-      `Ashuk & Ashman Beverages — Product sales: ${name}`,
->>>>>>> ca485d2 (codex update)
->>>>>>> Stashed changes
       `Added,${data.product?.addedAt || ''}`,
       `Scope,${scopeLabel(scope)}`,
       `Total added to stock,${data.product?.totalAdded ?? ''}`,

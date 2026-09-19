@@ -1,39 +1,15 @@
-<<<<<<< Updated upstream
-export const STORE_NAME = 'ASHUK & ASHMAN'
-=======
-<<<<<<< HEAD
 export const STORE_NAME = 'ASHUK & ASHMAN BEVERAGES'
->>>>>>> Stashed changes
 
-export const STORE_LOGO_SRC = '/newLogo.jpg'
+export const STORE_LOGO_SRC = '/ashuk-ashman-logo.png'
 
-<<<<<<< Updated upstream
-/** The existing logo already includes the brand styling; keep it untouched. */
-=======
 /** Logo image includes name, addresses, and phones — hide duplicate text on receipts. */
-=======
-export const STORE_NAME = 'ASHUK & ASHMAN'
-
-export const STORE_LOGO_SRC = '/newLogo.jpg'
-
-/** The existing logo already includes the brand styling; keep it untouched. */
->>>>>>> ca485d2 (codex update)
->>>>>>> Stashed changes
 export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
 
+export const STORE_TAGLINE = 'Farin Cikinku, Shine Namu...'
+
 export const STORE_ADDRESSES = [
-<<<<<<< Updated upstream
-  'Shop No. 67 | Hauwa Sani Marshal Plaza, Malam Kato, Kano.',
-  'Shop No. 17 | NAKOWA Plaza Bayan Glo Office, Kano.',
-=======
-<<<<<<< HEAD
   'Shop No. 67 — Hauwa Sani Marshal Plaza, Malam Kato',
   'Shop No. 17 — NAKOWA Plaza Bayan Glo Office, Kano',
-=======
-  'Shop No. 67 | Hauwa Sani Marshal Plaza, Malam Kato, Kano.',
-  'Shop No. 17 | NAKOWA Plaza Bayan Glo Office, Kano.',
->>>>>>> ca485d2 (codex update)
->>>>>>> Stashed changes
 ]
 
 export const STORE_PHONES = ['07066381212', '08145173573']
@@ -41,6 +17,9 @@ export const STORE_PHONES = ['07066381212', '08145173573']
 export const STORE_RECEIPT_TITLE = 'SALES INVOICE'
 
 export const STORE_RECEIPT_FOOTER_ARABIC = 'بالتوفيق والسلامة'
+
+/** Default admin after SETUP / seed (login field is stored as user email). */
+export const STORE_LOGIN_USERNAME = 'ASHUK'
 
 /** Default thermal roll — Xprinter XP-80T (80mm). */
 export const RECEIPT_PAPER_MM_DEFAULT = 80
@@ -54,11 +33,14 @@ export const RECEIPT_PAPER_OPTIONS = [
 
 export const NAV_ITEMS = [
   ['Dashboard', '/'],
-  ['Make Sales', '/sales'],
+  ['New Sales', '/sales'],
   ['Products', '/products'],
   ['Customers', '/customers'],
   ['Invoices', '/invoices'],
-  ['Debts', '/debts'],
+  ['Credit', '/credit'],
+  ['Expenses', '/expenses'],
+  ['Shift Closeout', '/closeout'],
+  ['Receive Stock', '/receive-stock'],
   ['Reports', '/reports'],
 ]
 
