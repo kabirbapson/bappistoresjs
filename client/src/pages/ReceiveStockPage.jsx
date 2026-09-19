@@ -523,7 +523,7 @@ export default function ReceiveStockPage() {
                           className="w-full rounded-lg border border-slate-300 bg-white p-2 text-right text-sm tabular-nums focus:border-emerald-500 focus:outline-none"
                         />
                       </div>
-                      <div className="w-28 text-right font-bold text-slate-800 tabular-nums">
+                      <div className="w-36 shrink-0 whitespace-nowrap text-right font-bold text-slate-800 tabular-nums">
                         {formatNaira(it.totalCost || 0)}
                       </div>
                       <button
