@@ -375,7 +375,7 @@ export default function InvoicesPage() {
         title="Delete invoice"
         message={
           deleteTarget
-            ? `Remove invoice ${deleteTarget.invoiceNumber || ''}? Product quantities will be restored and any linked debt record removed.`
+            ? `Remove invoice ${deleteTarget.invoiceNumber || ''}? Product quantities will be restored and any linked credit record removed.`
             : ''
         }
         onCancel={() => setDeleteTarget(null)}

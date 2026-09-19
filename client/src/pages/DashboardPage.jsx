@@ -11,10 +11,11 @@ import { DASHBOARD_LABELS, formatDashboardValue, formatNaira } from '../utils/fo
 
 const QUICK_LINKS = [
   { to: '/sales', label: 'Make sales', primary: true },
-  { to: '/products', label: 'Products' },
-  { to: '/invoices', label: 'Invoices' },
-  { to: '/debts', label: 'Debts' },
-  { to: '/reports', label: 'Reports' },
+  { to: '/receive-stock', label: 'Receive stock' },
+  { to: '/credit', label: 'Credit' },
+  { to: '/expenses', label: 'Expenses' },
+  { to: '/reminders', label: 'Reminders' },
+  { to: '/closeout', label: 'Shift closeout' },
 ]
 
 const CARD_STYLES = {
@@ -37,7 +38,7 @@ const CARD_ORDER = [
 
 const CARD_LINKS = {
   dailySales: '/sales',
-  outstandingDebt: '/debts',
+  outstandingDebt: '/credit',
   totalProducts: '/products',
   lowStockAlerts: '/products?stock=low',
   totalStockValue: '/products',
@@ -78,6 +79,7 @@ function StatCardSkeleton() {
 export default function DashboardPage() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [pendingReminders, setPendingReminders] = useState([])
 
   useEffect(() => {
     setLoading(true)
@@ -89,6 +91,11 @@ export default function DashboardPage() {
         toast.error(err.response?.data?.message || 'Could not load dashboard')
       })
       .finally(() => setLoading(false))
+
+    api
+      .get('/reminders?status=pending')
+      .then((res) => setPendingReminders(res.data.items || []))
+      .catch(() => {})
   }, [])
 
   const today = new Intl.DateTimeFormat('en-NG', {
@@ -173,6 +180,62 @@ export default function DashboardPage() {
                 />
               ))}
             </div>
+
+            {/* Business Reminders Quick Strip */}
+            {pendingReminders.length > 0 && (
+              <div className="glass-panel shrink-0 border-amber-200 bg-amber-50/60 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span>📌</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                      Active Business Reminders ({pendingReminders.length})
+                    </span>
+                  </div>
+                  <Link to="/reminders" className="text-xs font-bold text-emerald-800 hover:underline">
+                    View all / Add +
+                  </Link>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {pendingReminders.slice(0, 4).map((r) => (
+                    <div
+                      key={r._id}
+                      className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs shadow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await api.patch(`/reminders/${r._id}/toggle`)
+                            setPendingReminders((prev) => prev.filter((it) => it._id !== r._id))
+                            toast.success('Task marked completed!')
+                          } catch {
+                            toast.error('Failed to update task')
+                          }
+                        }}
+                        className="h-4 w-4 rounded border border-slate-400 hover:border-emerald-600 flex items-center justify-center text-[10px] text-emerald-700"
+                        title="Mark complete"
+                      />
+                      <span className="font-semibold text-slate-800 truncate max-w-[200px]" title={r.title}>
+                        {r.title}
+                      </span>
+                      {r.priority === 'urgent' && (
+                        <span className="rounded bg-rose-100 px-1 text-[10px] font-bold text-rose-800">
+                          🔥 Urgent
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {pendingReminders.length > 4 && (
+                    <Link
+                      to="/reminders"
+                      className="flex items-center rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200"
+                    >
+                      +{pendingReminders.length - 4} more
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
 
             <section className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
               <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-2 border-b border-slate-100 pb-3">

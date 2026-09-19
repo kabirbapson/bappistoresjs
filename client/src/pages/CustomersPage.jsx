@@ -202,8 +202,8 @@ export default function CustomersPage() {
 
           <p className="shrink-0 text-sm text-slate-500">
             Credit balances and payments are on{' '}
-            <Link to="/debts" className="font-medium text-emerald-700 hover:underline">
-              Debts
+            <Link to="/credit" className="font-medium text-emerald-700 hover:underline">
+              Credit
             </Link>
             .
           </p>
@@ -284,7 +284,7 @@ export default function CustomersPage() {
         title="Delete customer"
         message={
           deleteTarget
-            ? `Remove ${deleteTarget.name}? Customers with outstanding debt cannot be deleted.`
+            ? `Remove ${deleteTarget.name}? Customers with outstanding credit cannot be deleted.`
             : ''
         }
         onCancel={() => setDeleteTarget(null)}

@@ -16,6 +16,21 @@ export async function verifyMongodBinary(mongod) {
     timeout: 30000,
   })
   if (ver.status !== 0) {
+    const status = ver.status
+    const isMissingDll = status === 3221225781 || status === -1073741515
+    const isIllegalInstruction = status === 3221225501 || status === -1073741795
+    if (isMissingDll) {
+      throw new Error(
+        'mongod.exe requires Microsoft Visual C++ 2015-2022 Redistributable (exit ' + status + ').\n' +
+        'Run bundled\\vc_redist.x64.exe or ensure vcruntime140.dll / msvcp140.dll are present.',
+      )
+    }
+    if (isIllegalInstruction) {
+      throw new Error(
+        'mongod.exe crashed with illegal instruction (exit ' + status + ').\n' +
+        'This PC processor does not support AVX instructions required by MongoDB 5.0+.',
+      )
+    }
     throw new Error(
       'mongod.exe blocked or missing.\n' +
         'Add this app folder to Windows Defender exclusions and restore mongod.exe if quarantined.',

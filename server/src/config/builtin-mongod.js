@@ -261,6 +261,19 @@ export function verifyMongodBinary(binary) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
+    const status = result.status;
+    const isMissingDll = status === 3221225781 || status === -1073741515;
+    const isIllegalInstruction = status === 3221225501 || status === -1073741795;
+    if (isMissingDll) {
+      throw new Error(
+        `mongod requires Microsoft Visual C++ 2015-2022 Redistributable (exit ${status}). Please install bundled\\vc_redist.x64.exe or ensure vcruntime140.dll / msvcp140.dll are present.`,
+      );
+    }
+    if (isIllegalInstruction) {
+      throw new Error(
+        `mongod failed with illegal instruction (exit ${status}). This computer's processor lacks AVX instructions required by MongoDB 5.0+.`,
+      );
+    }
     throw new Error(
       `mongod --version failed (exit ${result.status}). Antivirus may have blocked ${binary}`,
     );

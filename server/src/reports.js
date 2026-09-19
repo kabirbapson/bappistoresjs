@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Debt, Payment, Product, Sale } from "./models.js";
+import { Debt, Expense, Payment, Product, Sale } from "./models.js";
 
 export function buildDateRange(query) {
   const period = query.period || "today";
@@ -198,12 +198,21 @@ export async function buildFinancialReport(from, to) {
     return null;
   }
 
+  const expenseAgg = await Expense.aggregate([
+    { $match: { date: { $gte: from, $lte: to }, type: "expense" } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
+  const totalExpenses = expenseAgg[0]?.total || 0;
+  const netProfit = s.totalProfit - totalExpenses;
+
   return {
     summary: {
       salesCount: s.salesCount,
       totalSales: s.totalSales,
       totalCost: s.totalCost,
       totalProfit: s.totalProfit,
+      totalExpenses,
+      netProfit,
       collectedAtSale: s.collectedAtSale,
       creditExtended: s.creditExtended,
       debtPaymentsReceived: dp.total,

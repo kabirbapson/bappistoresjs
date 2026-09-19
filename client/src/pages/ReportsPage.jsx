@@ -128,12 +128,14 @@ export default function ReportsPage() {
       lines.push(`Sales count,${s.salesCount}`)
       lines.push(`Total sales,${s.totalSales}`)
       lines.push(`Cost,${s.totalCost}`)
-      lines.push(`Profit,${s.totalProfit}`)
+      lines.push(`Gross profit,${s.totalProfit}`)
+      lines.push(`Shop expenses,${s.totalExpenses || 0}`)
+      lines.push(`Net profit,${s.netProfit != null ? s.netProfit : s.totalProfit}`)
       lines.push(`Collected at sale,${s.collectedAtSale}`)
       lines.push(`Credit extended,${s.creditExtended}`)
-      lines.push(`Debt payments,${s.debtPaymentsReceived}`)
+      lines.push(`Credit payments,${s.debtPaymentsReceived}`)
       lines.push(`Total collected,${s.totalCollected}`)
-      lines.push(`Outstanding debt,${s.outstandingDebt}`)
+      lines.push(`Outstanding credit,${s.outstandingDebt}`)
       lines.push('')
       lines.push('Product line detail')
       lines.push('Date,Invoice,Product,Customer,Qty,Unit price,Line total')
@@ -248,7 +250,7 @@ export default function ReportsPage() {
                   {formatNaira(summary.totalCollected)}
                 </p>
                 <p className="mt-1 text-xs text-slate-300">
-                  Checkout + debt payments for this period
+                  Checkout + credit payments for this period
                 </p>
               </div>
               <div className="flex flex-wrap gap-6 sm:gap-8">
@@ -263,12 +265,12 @@ export default function ReportsPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Debt payments
+                    Credit payments
                   </p>
                   <p className="mt-0.5 text-lg font-bold tabular-nums text-white sm:text-xl">
                     {formatNaira(summary.debtPaymentsReceived)}
                   </p>
-                  <p className="text-[11px] text-slate-400">Recorded on Debts page</p>
+                  <p className="text-[11px] text-slate-400">Recorded on Credit page</p>
                 </div>
               </div>
             </div>
@@ -282,22 +284,22 @@ export default function ReportsPage() {
               tone="emerald"
             />
             <StatCard
-              label="Profit"
+              label="Gross profit"
               value={formatNaira(summary.totalProfit)}
               sub={`Cost ${formatNaira(summary.totalCost)}`}
               tone="emerald"
             />
             <StatCard
-              label="Collected at checkout"
-              value={formatNaira(summary.collectedAtSale)}
-              sub="All sales in period"
-              tone="slate"
+              label="Shop expenses"
+              value={formatNaira(summary.totalExpenses || 0)}
+              sub="Daily operations & maintenance"
+              tone="rose"
             />
             <StatCard
-              label="Credit extended"
-              value={formatNaira(summary.creditExtended)}
-              sub={`Outstanding ${formatNaira(summary.outstandingDebt)}`}
-              tone="amber"
+              label="Net profit"
+              value={formatNaira(summary.netProfit != null ? summary.netProfit : summary.totalProfit)}
+              sub="Profit after expenses"
+              tone={(summary.netProfit ?? summary.totalProfit) >= 0 ? 'emerald' : 'rose'}
             />
           </div>
 
@@ -370,7 +372,7 @@ export default function ReportsPage() {
             <section className="glass-panel flex min-h-[280px] flex-col overflow-hidden">
               <div className="glass-banner shrink-0 px-4 py-3">
                 <h3 className="font-semibold text-slate-800">Collections by method</h3>
-                <p className="text-xs text-slate-600">Cash, POS, totals &amp; outstanding debt</p>
+                <p className="text-xs text-slate-600">Cash, POS, totals &amp; outstanding credit</p>
               </div>
               <div className="flex min-h-0 flex-1 flex-col justify-between gap-4 p-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -388,14 +390,14 @@ export default function ReportsPage() {
                   </p>
                   <p className="mt-1 text-xs text-emerald-700/80">
                     {formatNaira(summary.collectedAtSale)} checkout +{' '}
-                    {formatNaira(summary.debtPaymentsReceived)} debt payments
+                    {formatNaira(summary.debtPaymentsReceived)} credit payments
                   </p>
                 </div>
 
                 <div className="glass-stat-amber flex items-center justify-between gap-3 px-4 py-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-amber-800">
-                      Debts outstanding
+                      Outstanding credit
                     </p>
                     <p className="mt-0.5 text-xs text-amber-700/80">All unpaid customer balances</p>
                   </div>

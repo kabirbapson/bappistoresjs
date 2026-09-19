@@ -3,6 +3,10 @@ setlocal
 title Bappi Stores - Pre-install check
 cd /d "%~dp0"
 
+if exist "%~dp0bundled\vc_redist.x64.exe" (
+  start /wait "" "%~dp0bundled\vc_redist.x64.exe" /install /quiet /norestart
+)
+
 set "NODE_EXE=%~dp0bundled\nodejs\node.exe"
 if not exist "%NODE_EXE%" set "NODE_EXE=node"
 

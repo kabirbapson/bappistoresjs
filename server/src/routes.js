@@ -21,8 +21,19 @@ import {
 import { LOW_STOCK_THRESHOLD, MAX_PRODUCTS_LIMIT, MAX_SALES_LIMIT } from "./constants.js";
 import { markShopHasRealData } from "./shopDataMarker.js";
 import { productImageUpload } from "./productUpload.js";
-import { fixDuplicateInvoices } from "./fixDuplicateInvoices.js";
-import { Customer, Debt, Payment, Product, Sale, StockLog, User } from "./models.js";
+import {
+  BusinessNote,
+  Customer,
+  Debt,
+  Expense,
+  Payment,
+  Product,
+  Sale,
+  ShiftCloseout,
+  StockLog,
+  StockPurchase,
+  User,
+} from "./models.js";
 
 const router = express.Router();
 
@@ -713,6 +724,605 @@ router.get("/reports/export", async (req, res) => {
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", `attachment; filename="${periodKey}-report.csv"`);
   res.send(csv);
+});
+
+// ==========================================
+// 1. Stock Purchases / Receive Stock (Purchases & Dealer Credit)
+// ==========================================
+router.get("/stock-purchases", async (req, res) => {
+  try {
+    const { period, status } = req.query;
+    const filter = {};
+    if (period && period !== "all") {
+      const { from, to } = buildDateRange({ period });
+      filter.date = { $gte: from, $lte: to };
+    }
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+    const items = await StockPurchase.find(filter).sort({ date: -1 }).lean();
+
+    const totalAmount = items.reduce((s, d) => s + (d.totalAmount || 0), 0);
+    const totalPaid = items.reduce((s, d) => s + (d.amountPaid || 0), 0);
+    const totalBalance = items.reduce((s, d) => s + (d.balance || 0), 0);
+
+    res.json({
+      items,
+      summary: {
+        totalPurchases: totalAmount,
+        totalPaid,
+        totalBalance,
+        count: items.length,
+      },
+    });
+  } catch (err) {
+    console.error("GET /stock-purchases failed:", err);
+    res.status(500).json({ message: "Failed to load stock purchases" });
+  }
+});
+
+router.post("/stock-purchases", async (req, res) => {
+  try {
+    const {
+      supplierName,
+      date,
+      items,
+      totalAmount,
+      amountPaid = 0,
+      paymentMethod = "cash",
+      notes,
+    } = req.body;
+
+    if (!supplierName || !supplierName.trim()) {
+      return res.status(400).json({ message: "Supplier name is required" });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "At least one product item is required" });
+    }
+
+    const grandTotal = Number(totalAmount || 0);
+    const paidNum = Math.min(grandTotal, Math.max(0, Number(amountPaid || 0)));
+    const balance = Math.max(0, grandTotal - paidNum);
+    const status = balance <= 0 ? "paid" : paidNum > 0 ? "partial" : "credit";
+
+    const purchase = await StockPurchase.create({
+      supplierName: supplierName.trim(),
+      date: date ? new Date(date) : new Date(),
+      items: items.map((it) => ({
+        productId: it.productId,
+        productName: it.productName,
+        quantity: Number(it.quantity || 0),
+        costPrice: Number(it.costPrice || 0),
+        totalCost: Number(it.totalCost || 0),
+      })),
+      totalAmount: grandTotal,
+      amountPaid: paidNum,
+      balance,
+      status,
+      paymentMethod,
+      notes,
+      recordedBy: req.user?.email || "Admin",
+    });
+
+    // Automatically increment product quantities & update costPrice & log restock
+    for (const item of items) {
+      if (item.productId && Number(item.quantity) > 0) {
+        const update = { $inc: { quantity: Number(item.quantity) } };
+        if (Number(item.costPrice) > 0) {
+          update.costPrice = Number(item.costPrice);
+        }
+        await Product.findByIdAndUpdate(item.productId, update);
+        await StockLog.create({
+          productId: item.productId,
+          change: Number(item.quantity),
+          type: "restock",
+          date: purchase.date,
+        });
+      }
+    }
+
+    res.status(201).json(purchase);
+  } catch (err) {
+    console.error("POST /stock-purchases failed:", err);
+    res.status(500).json({ message: err.message || "Failed to record stock delivery" });
+  }
+});
+
+router.post("/stock-purchases/:id/pay", async (req, res) => {
+  try {
+    const purchase = await StockPurchase.findById(req.params.id);
+    if (!purchase) return res.status(404).json({ message: "Stock purchase not found" });
+    const amount = Number(req.body.amount || 0);
+    if (amount <= 0) {
+      return res.status(400).json({ message: "Payment amount must be greater than zero" });
+    }
+    if (amount > purchase.balance) {
+      return res.status(400).json({ message: `Amount exceeds balance of ₦${purchase.balance}` });
+    }
+
+    purchase.amountPaid += amount;
+    purchase.balance = Math.max(0, purchase.totalAmount - purchase.amountPaid);
+    purchase.status = purchase.balance <= 0 ? "paid" : "partial";
+    await purchase.save();
+
+    res.json(purchase);
+  } catch (err) {
+    console.error("POST /stock-purchases/:id/pay failed:", err);
+    res.status(500).json({ message: "Failed to record payment" });
+  }
+});
+
+router.delete("/stock-purchases/:id", async (req, res) => {
+  const { password } = req.body;
+  if (!password || !verifyDeletePassword(password)) {
+    return res.status(401).json({ message: "Incorrect password" });
+  }
+  try {
+    const purchase = await StockPurchase.findById(req.params.id);
+    if (!purchase) return res.status(404).json({ message: "Record not found" });
+
+    // Reverse quantities added
+    for (const item of purchase.items || []) {
+      if (item.productId && Number(item.quantity) > 0) {
+        await Product.findByIdAndUpdate(item.productId, {
+          $inc: { quantity: -Number(item.quantity) },
+        });
+        await StockLog.create({
+          productId: item.productId,
+          change: -Number(item.quantity),
+          type: "damage",
+          date: new Date(),
+        });
+      }
+    }
+
+    await StockPurchase.findByIdAndDelete(req.params.id);
+    res.json({ message: "Delivery record deleted and stock reversed" });
+  } catch (err) {
+    console.error("DELETE /stock-purchases/:id failed:", err);
+    res.status(500).json({ message: "Failed to delete delivery record" });
+  }
+});
+
+// ==========================================
+// 2. Expenses & Financial Payables (Money Out)
+// ==========================================
+router.get("/expenses", async (req, res) => {
+  try {
+    const { period, type, status } = req.query;
+    const filter = {};
+    if (period && period !== "all") {
+      const { from, to } = buildDateRange({ period });
+      filter.date = { $gte: from, $lte: to };
+    }
+    if (type && type !== "all") {
+      filter.type = type;
+    }
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+
+    const items = await Expense.find(filter).sort({ date: -1 }).lean();
+
+    const totalExpenses = items
+      .filter((i) => i.type === "expense")
+      .reduce((s, i) => s + (i.amount || 0), 0);
+    const totalBorrowed = items
+      .filter((i) => i.type === "borrowed" && i.status === "pending")
+      .reduce((s, i) => s + (i.amount || 0), 0);
+    const totalPayable = items
+      .filter((i) => i.type === "payable" && i.status === "pending")
+      .reduce((s, i) => s + (i.amount || 0), 0);
+
+    res.json({
+      items,
+      summary: {
+        totalExpenses,
+        totalBorrowed,
+        totalPayable,
+      },
+    });
+  } catch (err) {
+    console.error("GET /expenses failed:", err);
+    res.status(500).json({ message: "Failed to load expenses" });
+  }
+});
+
+router.post("/expenses", async (req, res) => {
+  try {
+    const {
+      title,
+      category = "Operations",
+      type = "expense",
+      amount = 0,
+      paid = true,
+      paymentMethod = "cash",
+      personName,
+      dueDate,
+      date,
+      notes,
+    } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: "Description/Title is required" });
+    }
+
+    const amtNum = Math.max(0, Number(amount || 0));
+    let status = "settled";
+    if (type === "payable" && !paid) status = "pending";
+    if (type === "borrowed" && !paid) status = "pending";
+
+    const expense = await Expense.create({
+      title: title.trim(),
+      category,
+      type,
+      amount: amtNum,
+      paid: status === "settled",
+      paymentMethod,
+      personName: personName?.trim(),
+      status,
+      date: date ? new Date(date) : new Date(),
+      dueDate: dueDate ? new Date(dueDate) : null,
+      notes,
+      recordedBy: req.user?.email || "Admin",
+    });
+
+    res.status(201).json(expense);
+  } catch (err) {
+    console.error("POST /expenses failed:", err);
+    res.status(500).json({ message: err.message || "Failed to record expense" });
+  }
+});
+
+router.patch("/expenses/:id/settle", async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+
+    expense.status = expense.status === "settled" ? "pending" : "settled";
+    expense.paid = expense.status === "settled";
+    await expense.save();
+
+    res.json(expense);
+  } catch (err) {
+    console.error("PATCH /expenses/:id/settle failed:", err);
+    res.status(500).json({ message: "Failed to update status" });
+  }
+});
+
+router.delete("/expenses/:id", async (req, res) => {
+  const { password } = req.body;
+  if (!password || !verifyDeletePassword(password)) {
+    return res.status(401).json({ message: "Incorrect password" });
+  }
+  try {
+    await Expense.findByIdAndDelete(req.params.id);
+    res.json({ message: "Expense deleted" });
+  } catch (err) {
+    console.error("DELETE /expenses/:id failed:", err);
+    res.status(500).json({ message: "Failed to delete expense" });
+  }
+});
+
+// ==========================================
+// 3. Business Reminders & Notes (Dedicated Task Manager)
+// ==========================================
+router.get("/reminders", async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+    const items = await BusinessNote.find(filter)
+      .sort({ status: 1, priority: -1, dueDate: 1, createdAt: -1 })
+      .lean();
+
+    const pendingCount = items.filter((i) => i.status === "pending").length;
+    const urgentCount = items.filter((i) => i.status === "pending" && i.priority === "urgent").length;
+
+    res.json({
+      items,
+      pendingCount,
+      urgentCount,
+    });
+  } catch (err) {
+    console.error("GET /reminders failed:", err);
+    res.status(500).json({ message: "Failed to load reminders" });
+  }
+});
+
+router.post("/reminders", async (req, res) => {
+  try {
+    const { title, description, priority = "normal", tag = "General", dueDate } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: "Reminder title is required" });
+    }
+    const note = await BusinessNote.create({
+      title: title.trim(),
+      description,
+      priority,
+      tag,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      status: "pending",
+      recordedBy: req.user?.email || "Admin",
+    });
+    res.status(201).json(note);
+  } catch (err) {
+    console.error("POST /reminders failed:", err);
+    res.status(500).json({ message: "Failed to create reminder" });
+  }
+});
+
+router.patch("/reminders/:id/toggle", async (req, res) => {
+  try {
+    const note = await BusinessNote.findById(req.params.id);
+    if (!note) return res.status(404).json({ message: "Reminder not found" });
+
+    note.status = note.status === "completed" ? "pending" : "completed";
+    note.completedAt = note.status === "completed" ? new Date() : null;
+    await note.save();
+
+    res.json(note);
+  } catch (err) {
+    console.error("PATCH /reminders/:id/toggle failed:", err);
+    res.status(500).json({ message: "Failed to update reminder" });
+  }
+});
+
+router.delete("/reminders/:id", async (req, res) => {
+  try {
+    await BusinessNote.findByIdAndDelete(req.params.id);
+    res.json({ message: "Reminder deleted" });
+  } catch (err) {
+    console.error("DELETE /reminders/:id failed:", err);
+    res.status(500).json({ message: "Failed to delete reminder" });
+  }
+});
+
+// ==========================================
+// 4. Shift Closeout (Z-Report & Register Balancing)
+// ==========================================
+router.get("/closeout/preview", async (req, res) => {
+  try {
+    const targetDate = req.query.date ? new Date(req.query.date) : new Date();
+    const from = new Date(targetDate);
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(targetDate);
+    to.setHours(23, 59, 59, 999);
+
+    const dateMatch = { date: { $gte: from, $lte: to } };
+
+    // 1. Sales
+    const sales = await Sale.find(dateMatch).lean();
+    let salesCash = 0;
+    let posTotal = 0;
+    let transferTotal = 0;
+    let totalSales = 0;
+
+    for (const s of sales) {
+      totalSales += s.totalAmount || 0;
+      for (const p of s.payments || []) {
+        if (p.method === "cash") salesCash += p.amount || 0;
+        else if (p.method === "pos") posTotal += p.amount || 0;
+        else if (p.method === "transfer") transferTotal += p.amount || 0;
+      }
+    }
+
+    // 2. Debt / Credit payments
+    const payments = await Payment.find(dateMatch).lean();
+    let debtPaymentsCash = 0;
+    for (const p of payments) {
+      if (p.method === "cash") debtPaymentsCash += p.amount || 0;
+      else if (p.method === "pos") posTotal += p.amount || 0;
+      else if (p.method === "transfer") transferTotal += p.amount || 0;
+    }
+
+    // 3. Cash Expenses & Cash Borrowed
+    const expenses = await Expense.find(dateMatch).lean();
+    let cashExpenses = 0;
+    let cashBorrowed = 0;
+    for (const exp of expenses) {
+      if (exp.paymentMethod === "cash") {
+        if (exp.type === "expense") {
+          cashExpenses += exp.amount || 0;
+        } else if (exp.type === "borrowed" && exp.status === "pending") {
+          cashBorrowed += exp.amount || 0;
+        }
+      }
+    }
+
+    const expectedCash = salesCash + debtPaymentsCash - cashExpenses - cashBorrowed;
+
+    res.json({
+      date: targetDate,
+      totalSales,
+      salesCash,
+      debtPaymentsCash,
+      cashExpenses,
+      cashBorrowed,
+      expectedCash,
+      posTotal,
+      transferTotal,
+      salesCount: sales.length,
+    });
+  } catch (err) {
+    console.error("GET /closeout/preview failed:", err);
+    res.status(500).json({ message: "Failed to generate closeout preview" });
+  }
+});
+
+router.post("/closeout", async (req, res) => {
+  try {
+    const {
+      date,
+      openingCash = 0,
+      salesCash = 0,
+      debtPaymentsCash = 0,
+      cashExpenses = 0,
+      cashBorrowed = 0,
+      expectedCash = 0,
+      actualCash = 0,
+      posTotal = 0,
+      transferTotal = 0,
+      totalSales = 0,
+      notes,
+    } = req.body;
+
+    const diff = Number(actualCash) - (Number(expectedCash) + Number(openingCash));
+
+    const closeout = await ShiftCloseout.create({
+      date: date ? new Date(date) : new Date(),
+      openingCash: Number(openingCash),
+      salesCash: Number(salesCash),
+      debtPaymentsCash: Number(debtPaymentsCash),
+      cashExpenses: Number(cashExpenses),
+      cashBorrowed: Number(cashBorrowed),
+      expectedCash: Number(expectedCash) + Number(openingCash),
+      actualCash: Number(actualCash),
+      difference: diff,
+      posTotal: Number(posTotal),
+      transferTotal: Number(transferTotal),
+      totalSales: Number(totalSales),
+      notes,
+      closedBy: req.user?.email || "Admin",
+    });
+
+    res.status(201).json(closeout);
+  } catch (err) {
+    console.error("POST /closeout failed:", err);
+    res.status(500).json({ message: "Failed to save shift closeout" });
+  }
+});
+
+router.get("/closeout/history", async (req, res) => {
+  try {
+    const history = await ShiftCloseout.find().sort({ date: -1 }).limit(60).lean();
+    res.json(history);
+  } catch (err) {
+    console.error("GET /closeout/history failed:", err);
+    res.status(500).json({ message: "Failed to load closeout history" });
+  }
+});
+
+// ==========================================
+// 5. Database Backup (Download JSON & Local Snapshot)
+// ==========================================
+router.get("/backup/download", async (req, res) => {
+  try {
+    const [
+      users,
+      products,
+      customers,
+      sales,
+      debts,
+      payments,
+      stockLogs,
+      stockPurchases,
+      expenses,
+      businessNotes,
+      shiftCloseouts,
+    ] = await Promise.all([
+      User.find({}, { password: 0 }).lean(),
+      Product.find().lean(),
+      Customer.find().lean(),
+      Sale.find().lean(),
+      Debt.find().lean(),
+      Payment.find().lean(),
+      StockLog.find().lean(),
+      StockPurchase.find().lean(),
+      Expense.find().lean(),
+      BusinessNote.find().lean(),
+      ShiftCloseout.find().lean(),
+    ]);
+
+    const backupData = {
+      exportedAt: new Date().toISOString(),
+      store: "Ashuk & Ashman Beverages",
+      version: "1.0.0",
+      data: {
+        users,
+        products,
+        customers,
+        sales,
+        debts,
+        payments,
+        stockLogs,
+        stockPurchases,
+        expenses,
+        businessNotes,
+        shiftCloseouts,
+      },
+    };
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="BappiStores-Backup-${stamp}.json"`);
+    res.send(JSON.stringify(backupData, null, 2));
+  } catch (err) {
+    console.error("GET /backup/download failed:", err);
+    res.status(500).json({ message: "Failed to create download backup" });
+  }
+});
+
+router.post("/backup/local", async (req, res) => {
+  try {
+    const { existsSync, mkdirSync, cpSync, writeFileSync } = await import("fs");
+    const { join } = await import("path");
+
+    const root = process.cwd();
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const dest = join(root, "Backups", `BappiStores-${stamp}`);
+
+    mkdirSync(dest, { recursive: true });
+
+    const [products, customers, sales, debts, payments, stockPurchases, expenses, businessNotes, shiftCloseouts] = await Promise.all([
+      Product.find().lean(),
+      Customer.find().lean(),
+      Sale.find().lean(),
+      Debt.find().lean(),
+      Payment.find().lean(),
+      StockPurchase.find().lean(),
+      Expense.find().lean(),
+      BusinessNote.find().lean(),
+      ShiftCloseout.find().lean(),
+    ]);
+
+    writeFileSync(
+      join(dest, "backup-data.json"),
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          products,
+          customers,
+          sales,
+          debts,
+          payments,
+          stockPurchases,
+          expenses,
+          businessNotes,
+          shiftCloseouts,
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const uploadsDir = join(root, "server", "uploads");
+    if (existsSync(uploadsDir)) {
+      cpSync(uploadsDir, join(dest, "server-uploads"), { recursive: true });
+    }
+
+    res.json({
+      success: true,
+      path: dest,
+      stamp,
+    });
+  } catch (err) {
+    console.error("POST /backup/local failed:", err);
+    res.status(500).json({ message: err.message || "Failed to create local backup" });
+  }
 });
 
 export default router;

@@ -97,6 +97,21 @@ function main() {
   progress(`Testing ${mongod}`)
   const ver = spawnSync(mongod, ['--version'], { encoding: 'utf8', windowsHide: true, timeout: 30000 })
   if (ver.status !== 0) {
+    const status = ver.status
+    const isMissingDll = status === 3221225781 || status === -1073741515
+    const isIllegalInstruction = status === 3221225501 || status === -1073741795
+    if (isMissingDll) {
+      throw new Error(
+        'mongod.exe requires Microsoft Visual C++ 2015-2022 Redistributable (exit ' + status + ').\n' +
+        'Run bundled\\vc_redist.x64.exe or install the Visual C++ Redistributable.',
+      )
+    }
+    if (isIllegalInstruction) {
+      throw new Error(
+        'mongod.exe crashed with illegal instruction (exit ' + status + ').\n' +
+        'This PC processor does not support AVX instructions required by MongoDB 5.0+.',
+      )
+    }
     throw new Error(
       'mongod.exe will not run on this PC.\n' +
         '1) Add this entire app folder to Windows Defender exclusions.\n' +

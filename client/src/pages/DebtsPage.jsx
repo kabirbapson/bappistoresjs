@@ -108,7 +108,7 @@ export default function DebtsPage() {
       .get(`/debts${params}`)
       .then((r) => setRows(r.data.items))
       .catch(() => {
-        toast.error('Could not load debts')
+        toast.error('Could not load credit records')
         setRows([])
       })
       .finally(() => setLoading(false))
@@ -201,11 +201,11 @@ export default function DebtsPage() {
     if (!deleteTarget) return
     try {
       await deleteWithPassword(`/debts/${deleteTarget._id}`, password)
-      toast.success('Debt record deleted')
+      toast.success('Credit record deleted')
       setDeleteTarget(null)
       load()
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete debt')
+      toast.error(err.response?.data?.message || 'Failed to delete credit record')
       throw err
     }
   }
@@ -215,7 +215,7 @@ export default function DebtsPage() {
       scroll={false}
       header={
         <PageHeader
-          title="Debts"
+          title="Credit"
           subtitle="Credit sales — paid at checkout plus payments recorded here"
         />
       }
@@ -235,7 +235,7 @@ export default function DebtsPage() {
             sub={
               period === 'all'
                 ? `${formatNaira(summary.paidAtCheckout)} at checkout · ${formatNaira(summary.paidOnDebtsPage)} on this page`
-                : `${formatNaira(summary.paidAtCheckout)} checkout · ${formatNaira(summary.paidOnDebtsPage)} debt payments`
+                : `${formatNaira(summary.paidAtCheckout)} checkout · ${formatNaira(summary.paidOnDebtsPage)} credit payments`
             }
           />
           <StatCard
@@ -270,7 +270,7 @@ export default function DebtsPage() {
                 </select>
               </label>
               <label className="block min-w-0 flex-1 text-sm">
-                <span className="mb-1 block font-medium text-slate-700">Search debtor</span>
+                <span className="mb-1 block font-medium text-slate-700">Search customer</span>
                 <input
                   className="glass-input w-full p-2.5 text-sm"
                   placeholder="Search by name…"
@@ -321,7 +321,7 @@ export default function DebtsPage() {
 
         {loading ? (
           <div className="glass-panel flex flex-1 items-center justify-center py-16">
-            <p className="text-slate-500">Loading debts…</p>
+            <p className="text-slate-500">Loading credit records…</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="glass-panel flex flex-1 flex-col items-center justify-center border-dashed border-slate-300 px-6 py-16 text-center">
@@ -330,8 +330,8 @@ export default function DebtsPage() {
             </div>
             <p className="mt-4 text-lg font-semibold text-slate-800">
               {query || statusFilter !== 'active' || period !== 'all'
-                ? 'No debts match your filters'
-                : 'All clear — no outstanding debt'}
+                ? 'No credit records match your filters'
+                : 'All clear — no outstanding credit'}
             </p>
             <p className="mt-1 max-w-sm text-sm text-slate-500">
               {statusFilter === 'active' && !query && period === 'all'
@@ -343,7 +343,7 @@ export default function DebtsPage() {
           <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="shrink-0 border-b border-slate-100 px-4 py-2.5">
               <p className="text-sm text-slate-600">
-                <span className="font-semibold text-slate-900">{filtered.length}</span> debt
+                <span className="font-semibold text-slate-900">{filtered.length}</span> credit record
                 {filtered.length !== 1 ? 's' : ''} shown
                 {period !== 'all' && (
                   <span className="text-slate-500">
@@ -356,7 +356,7 @@ export default function DebtsPage() {
               <p className="mt-0.5 text-xs text-slate-500">
                 {period === 'all'
                   ? 'Use a period filter to match Reports totals for that window.'
-                  : 'Paid amounts below are for this period only — matches Reports debt payments + checkout on credit sales.'}
+                  : 'Paid amounts below are for this period only — matches Reports credit payments + checkout on credit sales.'}
               </p>
             </div>
             <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
@@ -500,8 +500,8 @@ export default function DebtsPage() {
                             type="button"
                             onClick={() => setDeleteTarget(d)}
                             className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                            title="Delete debt record"
-                            aria-label={`Delete debt for ${name}`}
+                            title="Delete credit record"
+                            aria-label={`Delete credit record for ${name}`}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -530,10 +530,10 @@ export default function DebtsPage() {
 
       <PasswordDeleteDialog
         open={!!deleteTarget}
-        title="Delete debt record"
+        title="Delete credit record"
         message={
           deleteTarget
-            ? `Remove the debt record for ${deleteTarget.customerId?.name || 'this customer'}? Payment history for this debt will be deleted. The sale invoice is kept unless you delete it on Invoices.`
+            ? `Remove the credit record for ${deleteTarget.customerId?.name || 'this customer'}? Payment history for this credit will be deleted. The sale invoice is kept unless you delete it on Invoices.`
             : ''
         }
         onCancel={() => setDeleteTarget(null)}

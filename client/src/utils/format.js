@@ -61,7 +61,7 @@ export const DASHBOARD_LABELS = {
   totalStockValue: 'Stock value',
   lowStockAlerts: 'Low stock alerts',
   dailySales: "Today's sales",
-  outstandingDebt: 'Outstanding debt',
+  outstandingDebt: 'Outstanding credit',
   totalPaymentsReceived: 'Payments received',
 }
 

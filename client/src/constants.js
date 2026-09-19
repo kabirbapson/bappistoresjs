@@ -35,9 +35,12 @@ export const NAV_ITEMS = [
   ['Dashboard', '/'],
   ['Make Sales', '/sales'],
   ['Products', '/products'],
+  ['Receive Stock', '/receive-stock'],
   ['Customers', '/customers'],
   ['Invoices', '/invoices'],
-  ['Debts', '/debts'],
+  ['Credit', '/credit'],
+  ['Expenses', '/expenses'],
+  ['Shift Closeout', '/closeout'],
   ['Reports', '/reports'],
 ]
 

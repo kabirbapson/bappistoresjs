@@ -118,7 +118,10 @@ function isStartupTimeout(err) {
   return msg.includes("failed to start within") || msg.includes("GenericMMSError");
 }
 
-async function createMemoryServer({ clearCache = false } = {}) {
+async function createMemoryServer({
+  clearCache = false,
+  excludeFailingSystemBinary = false,
+} = {}) {
   if (clearCache && existsSync(MONGODB_BIN_CACHE)) {
     rmSync(MONGODB_BIN_CACHE, { recursive: true, force: true });
   }
@@ -126,7 +129,7 @@ async function createMemoryServer({ clearCache = false } = {}) {
   mkdirSync(PERSISTENT_DB_PATH, { recursive: true });
   mkdirSync(MONGODB_BIN_CACHE, { recursive: true });
 
-  const systemBinary = findSystemMongod();
+  const systemBinary = excludeFailingSystemBinary ? null : findSystemMongod();
   const downloadDir =
     existsSync(BUNDLED_MONGO_CACHE) && !systemBinary
       ? BUNDLED_MONGO_CACHE
@@ -174,14 +177,24 @@ async function startDirectWithRecovery(binary) {
 
 async function startBuiltInMongo() {
   const binary = findSystemMongod();
+  let directFailed = false;
   if (binary) {
     try {
       useDirectMongod = true;
       return await startDirectWithRecovery(binary);
     } catch (directErr) {
       useDirectMongod = false;
+      directFailed = true;
       await stopDirectMongod();
       if (isCorruptionError(directErr)) {
+        throw directErr;
+      }
+      const isFatalEnv =
+        directErr.message?.includes("Visual C++") ||
+        directErr.message?.includes("AVX") ||
+        directErr.message?.includes("3221225781") ||
+        directErr.message?.includes("3221225501");
+      if (isFatalEnv) {
         throw directErr;
       }
       console.warn(
@@ -213,7 +226,10 @@ async function startBuiltInMongo() {
 
     try {
       const clearCache = i > 0 && lastErr && isSpawnEftypeError(lastErr);
-      const server = await createMemoryServer({ clearCache });
+      const server = await createMemoryServer({
+        clearCache,
+        excludeFailingSystemBinary: directFailed,
+      });
       return { mode: "memory", server };
     } catch (err) {
       lastErr = err;
@@ -233,10 +249,11 @@ async function startBuiltInMongo() {
 
   const hint =
     "Built-in database could not start on this PC.\n" +
-    "1) Double-click STOP-APP.bat, then REPAIR-DATABASE.bat, then START.bat.\n" +
-    "2) Add this entire app folder to Windows Defender exclusions.\n" +
-    "3) Move the folder to C:\\BappiStores (not Desktop) and try again.\n" +
-    "4) Or install MongoDB Community and set in server\\.env:\n" +
+    "1) If missing Visual C++, run bundled\\vc_redist.x64.exe or install Microsoft Visual C++ 2015-2022 Redistributable.\n" +
+    "2) Double-click STOP-APP.bat, then REPAIR-DATABASE.bat, then START.bat.\n" +
+    "3) Add this entire app folder to Windows Defender exclusions.\n" +
+    "4) Move the folder to C:\\BappiStores (not Desktop) and try again.\n" +
+    "5) Or install MongoDB Community and set in server\\.env:\n" +
     "   MONGO_URI=mongodb://127.0.0.1:27017/bappistores";
   throw new Error(`${hint}\n\nTechnical: ${lastErr?.message || lastErr}`);
 }

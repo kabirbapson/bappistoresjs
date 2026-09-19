@@ -1,7 +1,12 @@
 @echo off
 setlocal
-title Bappi Stores - Setup
+title Ashuk & Ashman Beverages - Setup
 cd /d "%~dp0"
+
+if exist "%~dp0bundled\vc_redist.x64.exe" (
+  echo  Checking Microsoft Visual C++ runtime...
+  start /wait "" "%~dp0bundled\vc_redist.x64.exe" /install /quiet /norestart
+)
 
 set "NODE_EXE=%~dp0bundled\nodejs\node.exe"
 if exist "%NODE_EXE%" (
@@ -24,7 +29,7 @@ set "NODE_EXE=node"
 :run_setup
 echo.
 echo  ==================================================
-echo   BAPPI STORES - SETUP
+echo   ASHUK & ASHMAN BEVERAGES - SETUP
 echo  ==================================================
 echo.
 echo  IMPORTANT - WHERE TO INSTALL:

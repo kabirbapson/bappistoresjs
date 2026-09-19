@@ -10,6 +10,10 @@ import ProductsPage from './pages/ProductsPage'
 import InvoicesPage from './pages/InvoicesPage'
 import ReportsPage from './pages/ReportsPage'
 import SalesPage from './pages/SalesPage'
+import ReceiveStockPage from './pages/ReceiveStockPage'
+import ExpensesPage from './pages/ExpensesPage'
+import RemindersPage from './pages/RemindersPage'
+import CloseoutPage from './pages/CloseoutPage'
 
 function withLayout(Page) {
   return (
@@ -28,11 +32,20 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={withLayout(DashboardPage)} />
       <Route path="/products" element={withLayout(ProductsPage)} />
+      <Route path="/receive-stock" element={withLayout(ReceiveStockPage)} />
+      <Route path="/receive stock" element={withLayout(ReceiveStockPage)} />
+      <Route path="/receive%20stock" element={withLayout(ReceiveStockPage)} />
+      <Route path="/stock-in" element={withLayout(ReceiveStockPage)} />
       <Route path="/customers" element={withLayout(CustomersPage)} />
       <Route path="/sales" element={withLayout(SalesPage)} />
       <Route path="/invoices" element={withLayout(InvoicesPage)} />
       <Route path="/debts" element={withLayout(DebtsPage)} />
+      <Route path="/credit" element={withLayout(DebtsPage)} />
+      <Route path="/expenses" element={withLayout(ExpensesPage)} />
+      <Route path="/reminders" element={withLayout(RemindersPage)} />
+      <Route path="/closeout" element={withLayout(CloseoutPage)} />
       <Route path="/reports" element={withLayout(ReportsPage)} />
+      <Route path="*" element={withLayout(DashboardPage)} />
     </Routes>
     </ErrorBoundary>
   )

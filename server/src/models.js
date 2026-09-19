@@ -79,6 +79,86 @@ const stockLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const stockPurchaseSchema = new mongoose.Schema(
+  {
+    supplierName: { type: String, required: true },
+    date: { type: Date, default: Date.now },
+    items: [
+      {
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        productName: String,
+        quantity: Number,
+        costPrice: Number,
+        totalCost: Number,
+      },
+    ],
+    totalAmount: { type: Number, default: 0 },
+    amountPaid: { type: Number, default: 0 },
+    balance: { type: Number, default: 0 },
+    status: { type: String, enum: ["paid", "credit", "partial"], default: "paid" },
+    paymentMethod: { type: String, enum: ["cash", "pos", "transfer", "credit"], default: "cash" },
+    notes: String,
+    recordedBy: String,
+  },
+  { timestamps: true }
+);
+
+const expenseSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    category: { type: String, default: "Operations" },
+    type: { type: String, enum: ["expense", "borrowed", "payable"], default: "expense" },
+    amount: { type: Number, required: true },
+    paid: { type: Boolean, default: true },
+    paymentMethod: { type: String, enum: ["cash", "pos", "transfer", "unpaid"], default: "cash" },
+    personName: String,
+    status: { type: String, enum: ["settled", "pending"], default: "settled" },
+    date: { type: Date, default: Date.now },
+    dueDate: Date,
+    notes: String,
+    recordedBy: String,
+  },
+  { timestamps: true }
+);
+
+const businessNoteSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    description: String,
+    priority: { type: String, enum: ["urgent", "normal", "low"], default: "normal" },
+    tag: {
+      type: String,
+      enum: ["Distributor/Supply", "Maintenance", "Financial", "General"],
+      default: "General",
+    },
+    dueDate: Date,
+    status: { type: String, enum: ["pending", "completed"], default: "pending" },
+    completedAt: Date,
+    recordedBy: String,
+  },
+  { timestamps: true }
+);
+
+const shiftCloseoutSchema = new mongoose.Schema(
+  {
+    date: { type: Date, default: Date.now },
+    openingCash: { type: Number, default: 0 },
+    salesCash: { type: Number, default: 0 },
+    debtPaymentsCash: { type: Number, default: 0 },
+    cashExpenses: { type: Number, default: 0 },
+    cashBorrowed: { type: Number, default: 0 },
+    expectedCash: { type: Number, default: 0 },
+    actualCash: { type: Number, default: 0 },
+    difference: { type: Number, default: 0 },
+    posTotal: { type: Number, default: 0 },
+    transferTotal: { type: Number, default: 0 },
+    totalSales: { type: Number, default: 0 },
+    notes: String,
+    closedBy: String,
+  },
+  { timestamps: true }
+);
+
 export const User = mongoose.model("User", userSchema);
 export const Product = mongoose.model("Product", productSchema);
 export const Customer = mongoose.model("Customer", customerSchema);
@@ -86,3 +166,8 @@ export const Sale = mongoose.model("Sale", saleSchema);
 export const Debt = mongoose.model("Debt", debtSchema);
 export const Payment = mongoose.model("Payment", paymentSchema);
 export const StockLog = mongoose.model("StockLog", stockLogSchema);
+export const StockPurchase = mongoose.model("StockPurchase", stockPurchaseSchema);
+export const Expense = mongoose.model("Expense", expenseSchema);
+export const BusinessNote = mongoose.model("BusinessNote", businessNoteSchema);
+export const ShiftCloseout = mongoose.model("ShiftCloseout", shiftCloseoutSchema);
+
