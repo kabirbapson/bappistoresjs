@@ -70,10 +70,9 @@ body {
 
 .thermal-receipt .receipt-logo {
   display: block;
-  width: 98%;
-  max-width: 98%;
+  width: 100%;
+  max-width: 100%;
   height: auto;
-  max-height: 13rem;
   margin-left: auto;
   margin-right: auto;
   object-fit: contain;
@@ -90,11 +89,10 @@ html[data-receipt-mm='58'] .thermal-receipt {
 }
 
 html[data-receipt-mm='58'] .thermal-receipt .receipt-logo {
-  width: 98%;
-  max-width: 98%;
+  width: 100%;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
-  max-height: 10rem;
 }
 
 html[data-receipt-mm='58'] .thermal-receipt .receipt-store-name {
@@ -232,8 +230,8 @@ html[data-receipt-mm='58'] .thermal-receipt-preview {
   }
 
   body.printing-receipt #thermal-receipt-print .receipt-logo {
-    width: 98% !important;
-    max-width: 98% !important;
+    width: 100% !important;
+    max-width: 100% !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
