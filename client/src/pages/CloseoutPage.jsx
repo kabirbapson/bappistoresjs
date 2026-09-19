@@ -4,9 +4,8 @@ import api from '../api'
 import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
 import StoreBranding from '../components/StoreBranding'
-import { RECEIPT_PAPER_OPTIONS } from '../constants'
 import { formatDateOnly, formatNaira } from '../utils/format'
-import { getReceiptPaperMm, printThermalReceipt, setReceiptPaperMm } from '../utils/print'
+import { printThermalReceipt } from '../utils/print'
 
 export default function CloseoutPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -32,7 +31,6 @@ export default function CloseoutPage() {
 
   // Printable slip state
   const [printableRecord, setPrintableRecord] = useState(null)
-  const [printPaperMm, setPrintPaperMm] = useState(() => getReceiptPaperMm())
 
   const loadPreview = useCallback(async () => {
     setLoading(true)
@@ -382,14 +380,9 @@ export default function CloseoutPage() {
       {/* Modal: Thermal Z-Report Slip Preview & Print */}
       {printableRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="glass-panel flex max-h-[92vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="glass-panel flex max-h-[92vh] w-full max-w-3xl flex-col overflow-x-hidden overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex justify-center p-4"><div className="thermal-receipt-preview"><CloseoutSlipBody record={printableRecord} /></div></div>
-            <div className="no-print space-y-3 border-t p-4">
-              <label className="block text-xs font-medium text-slate-600">Paper width
-                <select className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" value={printPaperMm} onChange={(e) => { const mm = Number(e.target.value); setPrintPaperMm(mm); setReceiptPaperMm(mm) }}>
-                  {RECEIPT_PAPER_OPTIONS.map((option) => <option key={option.mm} value={option.mm}>{option.label}</option>)}
-                </select>
-              </label>
+            <div className="no-print border-t p-4">
               <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -426,8 +419,8 @@ function CloseoutSlipBody({ record }) {
       <section className="space-y-0.5 border-b border-dashed border-black pb-2 text-[11px]">
         <Line label="Date" value={formatDateOnly(record.date)} /><Line label="Time" value={printedAt} /><Line label="Closed by" value={record.closedBy || 'Admin'} />
       </section>
-      <section className="space-y-1 border-b border-dashed border-black pb-2 text-[11px]"><p className="font-bold uppercase">Sales summary</p><Line label="Total sales" value={formatNaira(record.totalSales)} strong /><Line label="POS / Card" value={formatNaira(record.posTotal || 0)} /><Line label="Bank transfers" value={formatNaira(record.transferTotal || 0)} /></section>
-      <section className="space-y-1 border-b border-dashed border-black pb-2 text-[11px]"><p className="font-bold uppercase">Cash drawer reconciliation</p><Line label="Opening float" value={`+${formatNaira(record.openingCash || 0)}`} /><Line label="Cash sales" value={`+${formatNaira(record.salesCash || 0)}`} /><Line label="Cash repayments" value={`+${formatNaira(record.debtPaymentsCash || 0)}`} /><Line label="Cash expenses" value={`-${formatNaira(record.cashExpenses || 0)}`} /><Line label="Cash borrowed" value={`-${formatNaira(record.cashBorrowed || 0)}`} /><div className="border-t border-dotted border-black pt-1"><Line label="Expected cash" value={formatNaira(record.expectedCash || 0)} strong /></div><Line label="Counted cash" value={formatNaira(record.actualCash || 0)} strong /><div className="border-t border-dotted border-black pt-1"><Line label="Variance" value={record.difference === 0 ? 'BALANCED' : `${record.difference > 0 ? '+' : ''}${formatNaira(record.difference)}`} strong /></div></section>
+      <section className="space-y-1 border-b border-dashed border-black pb-2 text-[11px]"><p className="font-bold uppercase">Sales summary</p><Line label="Total sales" value={formatNaira(record.totalSales)} strong /></section>
+      <section className="space-y-1 border-b border-dashed border-black pb-2 text-[11px]"><p className="font-bold uppercase">Cash drawer reconciliation</p><Line label="Opening float" value={`+${formatNaira(record.openingCash || 0)}`} /><Line label="Cash sales" value={`+${formatNaira(record.salesCash || 0)}`} /><Line label="Cash expenses" value={`-${formatNaira(record.cashExpenses || 0)}`} /><div className="border-t border-dotted border-black pt-1"><Line label="Expected cash" value={formatNaira(record.expectedCash || 0)} strong /></div><Line label="Counted cash" value={formatNaira(record.actualCash || 0)} strong /><div className="border-t border-dotted border-black pt-1"><Line label="Variance" value={record.difference === 0 ? 'BALANCED' : `${record.difference > 0 ? '+' : ''}${formatNaira(record.difference)}`} strong /></div></section>
       {record.notes && <section className="border-b border-dashed border-black pb-2 text-[10px]"><p className="font-bold">NOTES:</p><p>{record.notes}</p></section>}
       <footer className="space-y-4 pt-4 text-center text-[10px]"><div><div className="mx-auto mb-1 w-24 border-b border-black" /><p>Cashier Signature</p></div><div><div className="mx-auto mb-1 w-24 border-b border-black" /><p>Manager Signature</p></div></footer>
     </article>
