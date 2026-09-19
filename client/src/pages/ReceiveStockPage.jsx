@@ -40,7 +40,8 @@ export default function ReceiveStockPage() {
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [amountPaid, setAmountPaid] = useState('')
   const [notes, setNotes] = useState('')
-  const [items, setItems] = useState([{ productId: '', productName: '', quantity: '', costPrice: '', totalCost: 0 }])
+  const emptyDeliveryItem = () => ({ productId: '', productName: '', quantity: '', costPrice: '', sellingPrice: '', totalCost: 0, isNew: false })
+  const [items, setItems] = useState([emptyDeliveryItem()])
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -74,8 +75,14 @@ export default function ReceiveStockPage() {
   const handleItemProductChange = (index, prodId) => {
     const prod = products.find((p) => String(p._id) === String(prodId))
     const next = [...items]
+    if (prodId === '__new__') {
+      next[index] = { ...emptyDeliveryItem(), isNew: true, quantity: next[index].quantity }
+      setItems(next)
+      return
+    }
     next[index].productId = prodId
     next[index].productName = prod ? prod.name : ''
+    next[index].isNew = false
     next[index].costPrice = prod ? prod.costPrice || '' : ''
     const qty = Number(next[index].quantity || 0)
     const cost = Number(next[index].costPrice || 0)
@@ -100,7 +107,7 @@ export default function ReceiveStockPage() {
   }
 
   const addItemRow = () => {
-    setItems([...items, { productId: '', productName: '', quantity: '', costPrice: '', totalCost: 0 }])
+    setItems([...items, emptyDeliveryItem()])
   }
 
   const removeItemRow = (index) => {
@@ -124,9 +131,13 @@ export default function ReceiveStockPage() {
     if (!supplierName.trim()) {
       return toast.error('Please enter supplier or dealer name')
     }
-    const validItems = items.filter((it) => it.productId && Number(it.quantity) > 0)
+    const validItems = items.filter((it) => (it.productId || (it.isNew && it.productName.trim())) && Number(it.quantity) > 0)
     if (validItems.length === 0) {
       return toast.error('Please add at least one product with quantity')
+    }
+    const incompleteNewProduct = validItems.find((it) => it.isNew && (Number(it.sellingPrice) < 0 || it.sellingPrice === ''))
+    if (incompleteNewProduct) {
+      return toast.error('Enter a selling price for each new product')
     }
 
     setSaving(true)
@@ -144,7 +155,7 @@ export default function ReceiveStockPage() {
       setModalOpen(false)
       // Reset form
       setSupplierName('')
-      setItems([{ productId: '', productName: '', quantity: '', costPrice: '', totalCost: 0 }])
+      setItems([emptyDeliveryItem()])
       setAmountPaid('')
       setNotes('')
       load()
@@ -449,7 +460,7 @@ export default function ReceiveStockPage() {
                 </div>
                 <div className="space-y-2">
                   {items.map((it, idx) => (
-                    <div key={idx} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2 text-sm">
+                    <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2 text-sm">
                       <div className="min-w-0 flex-1">
                         <select
                           required
@@ -458,6 +469,7 @@ export default function ReceiveStockPage() {
                           className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm focus:border-emerald-500 focus:outline-none"
                         >
                           <option value="">Select product to restock…</option>
+                          <option value="__new__">+ Add new product to inventory…</option>
                           {products.map((p) => (
                             <option key={p._id} value={p._id}>
                               {p.name} (Current: {p.quantity})
@@ -465,6 +477,30 @@ export default function ReceiveStockPage() {
                           ))}
                         </select>
                       </div>
+                      {it.isNew && (
+                        <>
+                          <div className="min-w-40 flex-1">
+                            <input
+                              required
+                              placeholder="New product name"
+                              value={it.productName}
+                              onChange={(e) => setItems(items.map((item, i) => i === idx ? { ...item, productName: e.target.value } : item))}
+                              className="w-full rounded-lg border border-emerald-300 bg-white p-2 text-sm focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="w-28">
+                            <input
+                              type="number"
+                              min="0"
+                              required
+                              placeholder="Sell (₦)"
+                              value={it.sellingPrice}
+                              onChange={(e) => setItems(items.map((item, i) => i === idx ? { ...item, sellingPrice: e.target.value } : item))}
+                              className="w-full rounded-lg border border-emerald-300 bg-white p-2 text-right text-sm tabular-nums focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                        </>
+                      )}
                       <div className="w-24">
                         <input
                           type="number"

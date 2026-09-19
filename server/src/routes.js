@@ -779,6 +779,26 @@ router.post("/stock-purchases", async (req, res) => {
       return res.status(400).json({ message: "At least one product item is required" });
     }
 
+    const resolvedItems = [];
+    for (const item of items) {
+      let product;
+      if (item.isNew) {
+        const name = String(item.productName || "").trim();
+        if (!name) return res.status(400).json({ message: "New product name is required" });
+        product = await Product.create({
+          name,
+          category: "Beverages",
+          quantity: 0,
+          costPrice: Number(item.costPrice || 0),
+          sellingPrice: Number(item.sellingPrice || 0),
+        });
+      } else {
+        product = await Product.findById(item.productId);
+        if (!product) return res.status(400).json({ message: `Product not found: ${item.productName || item.productId}` });
+      }
+      resolvedItems.push({ ...item, productId: product._id, productName: product.name });
+    }
+
     const grandTotal = Number(totalAmount || 0);
     const paidNum = Math.min(grandTotal, Math.max(0, Number(amountPaid || 0)));
     const balance = Math.max(0, grandTotal - paidNum);
@@ -787,7 +807,7 @@ router.post("/stock-purchases", async (req, res) => {
     const purchase = await StockPurchase.create({
       supplierName: supplierName.trim(),
       date: date ? new Date(date) : new Date(),
-      items: items.map((it) => ({
+      items: resolvedItems.map((it) => ({
         productId: it.productId,
         productName: it.productName,
         quantity: Number(it.quantity || 0),
@@ -804,7 +824,7 @@ router.post("/stock-purchases", async (req, res) => {
     });
 
     // Automatically increment product quantities & update costPrice & log restock
-    for (const item of items) {
+    for (const item of resolvedItems) {
       if (item.productId && Number(item.quantity) > 0) {
         const update = { $inc: { quantity: Number(item.quantity) } };
         if (Number(item.costPrice) > 0) {
