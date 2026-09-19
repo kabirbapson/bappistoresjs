@@ -36,6 +36,15 @@ import {
 
 const router = express.Router();
 
+function normalizeProductName(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function productNameFilter(name) {
+  const escaped = normalizeProductName(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return { name: { $regex: `^${escaped}$`, $options: "i" } };
+}
+
 /** Fix duplicate invoice numbers — no app restart; use FIX-INVOICES.bat while shop is open. */
 router.post("/maintenance/fix-invoices", async (req, res) => {
   const key = req.headers["x-maintenance-key"];
@@ -92,7 +101,12 @@ router.post("/products/image", (req, res, next) => {
   });
 });
 router.post("/products", async (req, res) => {
-  const doc = await Product.create(req.body);
+  const name = normalizeProductName(req.body.name);
+  if (!name) return res.status(400).json({ message: "Product name is required" });
+  if (await Product.exists(productNameFilter(name))) {
+    return res.status(409).json({ message: "A product with this name already exists" });
+  }
+  const doc = await Product.create({ ...req.body, name });
   markShopHasRealData();
   res.status(201).json(doc);
 });
@@ -761,12 +775,15 @@ router.get("/stock-purchases", async (req, res) => {
 });
 
 router.post("/stock-purchases", async (req, res) => {
+  const createdProductIds = [];
+  const updatedProducts = [];
+  const stockLogIds = [];
+  let purchase;
   try {
     const {
       supplierName,
       date,
       items,
-      totalAmount,
       amountPaid = 0,
       paymentMethod = "cash",
       notes,
@@ -780,39 +797,80 @@ router.post("/stock-purchases", async (req, res) => {
     }
 
     const resolvedItems = [];
+    const seenProductIds = new Set();
+    const seenNewNames = new Set();
+
+    // Validate every item and calculate its value on the server before writing anything.
     for (const item of items) {
-      let product;
-      if (item.isNew) {
-        const name = String(item.productName || "").trim();
-        if (!name) return res.status(400).json({ message: "New product name is required" });
-        product = await Product.create({
-          name,
-          category: "Beverages",
-          quantity: 0,
-          costPrice: Number(item.costPrice || 0),
-          sellingPrice: Number(item.sellingPrice || 0),
-        });
-      } else {
-        product = await Product.findById(item.productId);
-        if (!product) return res.status(400).json({ message: `Product not found: ${item.productName || item.productId}` });
+      const quantity = Number(item.quantity);
+      const costPrice = Number(item.costPrice);
+      if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(costPrice) || costPrice < 0) {
+        return res.status(400).json({ message: "Each item needs a valid quantity and cost price" });
       }
-      resolvedItems.push({ ...item, productId: product._id, productName: product.name });
+
+      if (item.isNew) {
+        const name = normalizeProductName(item.productName);
+        if (!name) return res.status(400).json({ message: "New product name is required" });
+        const sellingPrice = Number(item.sellingPrice);
+        if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
+          return res.status(400).json({ message: `Enter a valid selling price for ${name}` });
+        }
+        const nameKey = name.toLocaleLowerCase();
+        if (seenNewNames.has(nameKey) || (await Product.exists(productNameFilter(name)))) {
+          return res.status(409).json({ message: `A product named ${name} already exists` });
+        }
+        seenNewNames.add(nameKey);
+        resolvedItems.push({ isNew: true, name, quantity, costPrice, sellingPrice, totalCost: quantity * costPrice });
+      } else {
+        const productId = String(item.productId || "");
+        if (!productId || seenProductIds.has(productId)) {
+          return res.status(400).json({ message: "Each existing product can appear only once per delivery" });
+        }
+        const product = await Product.findById(productId);
+        if (!product) return res.status(400).json({ message: `Product not found: ${item.productName || item.productId}` });
+        seenProductIds.add(productId);
+        resolvedItems.push({
+          isNew: false,
+          product,
+          quantity,
+          costPrice,
+          totalCost: quantity * costPrice,
+        });
+      }
     }
 
-    const grandTotal = Number(totalAmount || 0);
-    const paidNum = Math.min(grandTotal, Math.max(0, Number(amountPaid || 0)));
+    const grandTotal = resolvedItems.reduce((sum, item) => sum + item.totalCost, 0);
+    const requestedPayment = Number(amountPaid || 0);
+    if (!Number.isFinite(requestedPayment) || requestedPayment < 0) {
+      return res.status(400).json({ message: "Amount paid must be a valid positive number" });
+    }
+    const paidNum = Math.min(grandTotal, requestedPayment);
     const balance = Math.max(0, grandTotal - paidNum);
     const status = balance <= 0 ? "paid" : paidNum > 0 ? "partial" : "credit";
 
-    const purchase = await StockPurchase.create({
+    // Create only after validation has succeeded for the entire delivery.
+    for (const item of resolvedItems) {
+      if (item.isNew) {
+        item.product = await Product.create({
+          name: item.name,
+          category: "Beverages",
+          quantity: 0,
+          costPrice: item.costPrice,
+          sellingPrice: item.sellingPrice,
+        });
+        createdProductIds.push(item.product._id);
+      }
+    }
+
+    purchase = await StockPurchase.create({
       supplierName: supplierName.trim(),
       date: date ? new Date(date) : new Date(),
       items: resolvedItems.map((it) => ({
-        productId: it.productId,
-        productName: it.productName,
-        quantity: Number(it.quantity || 0),
-        costPrice: Number(it.costPrice || 0),
-        totalCost: Number(it.totalCost || 0),
+        productId: it.product._id,
+        productName: it.product.name,
+        quantity: it.quantity,
+        costPrice: it.costPrice,
+        totalCost: it.totalCost,
       })),
       totalAmount: grandTotal,
       amountPaid: paidNum,
@@ -825,23 +883,35 @@ router.post("/stock-purchases", async (req, res) => {
 
     // Automatically increment product quantities & update costPrice & log restock
     for (const item of resolvedItems) {
-      if (item.productId && Number(item.quantity) > 0) {
-        const update = { $inc: { quantity: Number(item.quantity) } };
-        if (Number(item.costPrice) > 0) {
-          update.costPrice = Number(item.costPrice);
-        }
-        await Product.findByIdAndUpdate(item.productId, update);
-        await StockLog.create({
-          productId: item.productId,
-          change: Number(item.quantity),
-          type: "restock",
-          date: purchase.date,
-        });
-      }
+      updatedProducts.push({ id: item.product._id, quantity: item.quantity, previousCostPrice: item.product.costPrice });
+      await Product.findByIdAndUpdate(item.product._id, {
+        $inc: { quantity: item.quantity },
+        $set: { costPrice: item.costPrice },
+      });
+      const stockLog = await StockLog.create({
+        productId: item.product._id,
+        change: item.quantity,
+        type: "restock",
+        date: purchase.date,
+      });
+      stockLogIds.push(stockLog._id);
     }
 
+    markShopHasRealData();
     res.status(201).json(purchase);
   } catch (err) {
+    // MongoDB runs locally as a standalone instance, so use compensating cleanup if a write fails.
+    if (stockLogIds.length) await StockLog.deleteMany({ _id: { $in: stockLogIds } }).catch(() => {});
+    if (purchase?._id) await StockPurchase.findByIdAndDelete(purchase._id).catch(() => {});
+    for (const item of updatedProducts.reverse()) {
+      if (!createdProductIds.some((id) => String(id) === String(item.id))) {
+        await Product.findByIdAndUpdate(item.id, {
+          $inc: { quantity: -item.quantity },
+          $set: { costPrice: item.previousCostPrice },
+        }).catch(() => {});
+      }
+    }
+    if (createdProductIds.length) await Product.deleteMany({ _id: { $in: createdProductIds } }).catch(() => {});
     console.error("POST /stock-purchases failed:", err);
     res.status(500).json({ message: err.message || "Failed to record stock delivery" });
   }
