@@ -76,7 +76,7 @@ export default function ReceiveStockPage() {
     const prod = products.find((p) => String(p._id) === String(prodId))
     const next = [...items]
     if (prodId === '__new__') {
-      next[index] = { ...emptyDeliveryItem(), isNew: true, quantity: next[index].quantity }
+      next[index] = { ...emptyDeliveryItem(), productId: '__new__', isNew: true, quantity: next[index].quantity }
       setItems(next)
       return
     }
@@ -463,8 +463,8 @@ export default function ReceiveStockPage() {
                     <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2 text-sm">
                       <div className="min-w-0 flex-1">
                         <select
-                          required
-                          value={it.productId}
+                          required={!it.isNew}
+                          value={it.isNew ? '__new__' : it.productId}
                           onChange={(e) => handleItemProductChange(idx, e.target.value)}
                           className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm focus:border-emerald-500 focus:outline-none"
                         >
