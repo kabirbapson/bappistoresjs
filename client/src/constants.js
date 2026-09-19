@@ -1,6 +1,7 @@
 export const STORE_NAME = 'ASHUK & ASHMAN BEVERAGES'
 
-export const STORE_LOGO_SRC = '/ashuk-ashman-logo.png'
+// This image includes the approved name, locations, and contact details.
+export const STORE_LOGO_SRC = '/newLogo.jpg'
 
 /** Logo image includes name, addresses, and phones — hide duplicate text on receipts. */
 export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
@@ -8,8 +9,8 @@ export const STORE_LOGO_INCLUDES_RECEIPT_HEADER = true
 export const STORE_TAGLINE = 'Farin Cikinku, Shine Namu...'
 
 export const STORE_ADDRESSES = [
-  'Shop No. 67 — Hauwa Sani Marshal Plaza, Malam Kato',
-  'Shop No. 17 — NAKOWA Plaza Bayan Glo Office, Kano',
+  'Shop No. 67 | Hauwa Sani Marshal Plaza, Malam Kato, Kano.',
+  'Shop No. 17 | NAKOWA Plaza Bayan Glo Olo Office, Kano.',
 ]
 
 export const STORE_PHONES = ['07066381212', '08145173573']
