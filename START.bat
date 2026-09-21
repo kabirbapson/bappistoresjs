@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Ashuk & Ashman Beverages
+title Bappi Stores
 cd /d "%~dp0"
 
 set "NODE_EXE=%~dp0bundled\nodejs\node.exe"
@@ -35,10 +35,10 @@ echo %CD% | findstr /I "Documents Desktop OneDrive" >nul && (
 )
 
 echo.
-echo  Ashuk & Ashman Beverages is starting...
+echo  Bappi Stores is starting...
 echo  Browser: http://127.0.0.1:5001
 echo           (or http://ashukandashman:5001 after hostname setup)
-echo  Login: ASHUK  /  ASHMAN
+echo  Login: BAPPI  /  STORES
 echo.
 echo  Leave this window open while using the app.
 echo  Press Ctrl+C to stop.

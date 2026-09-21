@@ -220,7 +220,7 @@ async function main() {
 
   banner('SETUP FINISHED SUCCESSFULLY')
   progress(`Open in browser: ${url}`)
-  progress('Login: ASHUK  /  Password: ASHMAN')
+  progress('Login: BAPPI  /  Password: STORES')
   if (isWin) {
     progress('Next: double-click START.bat every day.')
     progress('Optional once: CONFIGURE-HOSTNAME.bat as Administrator (for http://ashukandashman:5001).')

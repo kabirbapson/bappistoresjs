@@ -32,6 +32,8 @@ import {
   StockLog,
   StockPurchase,
   User,
+  CashNote,
+  NoteTransaction
 } from "./models.js";
 
 const router = express.Router();
@@ -60,7 +62,7 @@ router.post("/maintenance/fix-invoices", async (req, res) => {
     res.status(500).json({ message: err.message || "Fix failed" });
   }
 });
-
+  
 router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
   const loginId = String(email || "").trim();
@@ -942,9 +944,9 @@ router.post("/stock-purchases/:id/pay", async (req, res) => {
 });
 
 router.delete("/stock-purchases/:id", async (req, res) => {
-  const { password } = req.body;
-  if (!password || !verifyDeletePassword(password)) {
-    return res.status(401).json({ message: "Incorrect password" });
+  const check = verifyDeletePassword(req);
+  if (check.error) {
+    return res.status(403).json({ message: check.error });
   }
   try {
     const purchase = await StockPurchase.findById(req.params.id);
@@ -1080,9 +1082,9 @@ router.patch("/expenses/:id/settle", async (req, res) => {
 });
 
 router.delete("/expenses/:id", async (req, res) => {
-  const { password } = req.body;
-  if (!password || !verifyDeletePassword(password)) {
-    return res.status(401).json({ message: "Incorrect password" });
+  const check = verifyDeletePassword(req);
+  if (check.error) {
+    return res.status(403).json({ message: check.error });
   }
   try {
     await Expense.findByIdAndDelete(req.params.id);
@@ -1331,6 +1333,143 @@ router.post("/backup/local", async (req, res) => {
     console.error("POST /backup/local failed:", err);
     res.status(500).json({ message: err.message || "Failed to create local backup" });
   }
+});
+
+// --- Cash Notes (Manual Debts) ---
+router.get("/notes", async (req, res) => {
+  const { q = "" } = req.query;
+  const escaped = String(q || "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const filter = escaped ? { customerName: new RegExp(escaped, "i") } : {};
+  const notes = await CashNote.find(filter).sort({ date: -1 });
+  res.json(notes);
+});
+
+router.post("/notes", async (req, res) => {
+  try {
+    const { customerName, description, totalAmount, amountPaid = 0 } = req.body;
+    if (!customerName || !customerName.trim()) {
+      return res.status(400).json({ message: "Customer name is required" });
+    }
+    const totalNum = Math.max(0, Number(totalAmount || 0));
+    const paidNum = Math.max(0, Number(amountPaid || 0));
+    const balance = Math.max(0, totalNum - paidNum);
+    let status = "unpaid";
+    if (balance <= 0) status = "paid";
+    else if (paidNum > 0) status = "partial";
+    
+    const note = await CashNote.create({
+      customerName: customerName.trim(),
+      description: description?.trim() || "",
+      totalAmount: totalNum,
+      amountPaid: paidNum,
+      balance,
+      status,
+      recordedBy: req.user?.email || "Admin"
+    });
+    
+    await NoteTransaction.create({
+      noteId: note._id,
+      type: "borrow",
+      amount: totalNum,
+      reason: description?.trim() || "Initial note amount",
+      method: "cash",
+      recordedBy: req.user?.email || "Admin"
+    });
+
+    if (paidNum > 0) {
+      await NoteTransaction.create({
+        noteId: note._id,
+        type: "payment",
+        amount: paidNum,
+        reason: "Initial payment",
+        method: req.body.paymentMethod || "cash",
+        recordedBy: req.user?.email || "Admin"
+      });
+    }
+    res.json(note);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post("/notes/:id/pay", async (req, res) => {
+  try {
+    const { amount, method, reason } = req.body;
+    const payNum = Number(amount || 0);
+    if (!payNum || payNum <= 0) {
+      return res.status(400).json({ message: "Payment amount must be greater than zero" });
+    }
+    const note = await CashNote.findById(req.params.id);
+    if (!note) return res.status(404).json({ message: "Note not found" });
+
+    note.amountPaid = Number(note.amountPaid || 0) + payNum;
+    note.balance = Math.max(0, Number(note.balance || 0) - payNum);
+    if (note.balance <= 0) note.status = "paid";
+    else if (note.amountPaid > 0) note.status = "partial";
+    
+    await note.save();
+
+    await NoteTransaction.create({
+      noteId: note._id,
+      type: "payment",
+      amount: payNum,
+      reason: reason?.trim() || "Payment recorded",
+      method: method || "cash",
+      recordedBy: req.user?.email || "Admin"
+    });
+    res.json(note);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post("/notes/:id/borrow", async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+    const borrowNum = Number(amount || 0);
+    if (!borrowNum || borrowNum <= 0) {
+      return res.status(400).json({ message: "Borrow amount must be greater than zero" });
+    }
+    const note = await CashNote.findById(req.params.id);
+    if (!note) return res.status(404).json({ message: "Note not found" });
+
+    note.totalAmount = Number(note.totalAmount || 0) + borrowNum;
+    note.balance = Math.max(0, Number(note.balance || 0) + borrowNum);
+    if (note.balance <= 0) note.status = "paid";
+    else if (note.amountPaid > 0) note.status = "partial";
+    else note.status = "unpaid";
+    
+    await note.save();
+
+    await NoteTransaction.create({
+      noteId: note._id,
+      type: "borrow",
+      amount: borrowNum,
+      reason: reason?.trim() || "Additional borrowing",
+      method: "cash",
+      recordedBy: req.user?.email || "Admin"
+    });
+    res.json(note);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/notes/:id/transactions", async (req, res) => {
+  try {
+    const transactions = await NoteTransaction.find({ noteId: req.params.id }).sort({ date: -1 });
+    res.json(transactions);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete("/notes/:id", async (req, res) => {
+  const check = verifyDeletePassword(req);
+  if (check.error) return res.status(403).json({ message: check.error });
+  await NoteTransaction.deleteMany({ noteId: req.params.id });
+  await CashNote.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
 });
 
 export default router;

@@ -19,7 +19,7 @@ fi
 echo ""
 echo "  Bappi Stores is starting..."
 echo "  Browser: http://ashukandashman:5001"
-echo "  Login: ASHUK  /  ASHMAN"
+echo "  Login: BAPPI  /  STORES"
 echo ""
 echo "  Leave this window open while using the app."
 echo "  Press Ctrl+C to stop."

@@ -13,6 +13,7 @@ import SalesPage from './pages/SalesPage'
 import ReceiveStockPage from './pages/ReceiveStockPage'
 import ExpensesPage from './pages/ExpensesPage'
 import CloseoutPage from './pages/CloseoutPage'
+import NotesPage from './pages/NotesPage'
 
 function withLayout(Page) {
   return (
@@ -43,6 +44,7 @@ export default function App() {
       <Route path="/expenses" element={withLayout(ExpensesPage)} />
       <Route path="/closeout" element={withLayout(CloseoutPage)} />
       <Route path="/reports" element={withLayout(ReportsPage)} />
+      <Route path="/notes" element={withLayout(NotesPage)} />
       <Route path="*" element={withLayout(DashboardPage)} />
     </Routes>
     </ErrorBoundary>

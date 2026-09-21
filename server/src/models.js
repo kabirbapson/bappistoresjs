@@ -141,6 +141,33 @@ const shiftCloseoutSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const cashNoteSchema = new mongoose.Schema(
+  {
+    customerName: { type: String, required: true },
+    description: String,
+    totalAmount: Number,
+    amountPaid: { type: Number, default: 0 },
+    balance: Number,
+    status: { type: String, enum: ["paid", "partial", "unpaid"], default: "unpaid" },
+    recordedBy: String,
+    date: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
+
+const noteTransactionSchema = new mongoose.Schema(
+  {
+    noteId: { type: mongoose.Schema.Types.ObjectId, ref: "CashNote", required: true },
+    type: { type: String, enum: ["borrow", "payment"], required: true },
+    amount: Number,
+    reason: String,
+    date: { type: Date, default: Date.now },
+    method: { type: String, enum: ["cash", "pos", "transfer"], default: "cash" },
+    recordedBy: String,
+  },
+  { timestamps: true }
+);
+
 export const User = mongoose.model("User", userSchema);
 export const Product = mongoose.model("Product", productSchema);
 export const Customer = mongoose.model("Customer", customerSchema);
@@ -151,4 +178,6 @@ export const StockLog = mongoose.model("StockLog", stockLogSchema);
 export const StockPurchase = mongoose.model("StockPurchase", stockPurchaseSchema);
 export const Expense = mongoose.model("Expense", expenseSchema);
 export const ShiftCloseout = mongoose.model("ShiftCloseout", shiftCloseoutSchema);
+export const CashNote = mongoose.model("CashNote", cashNoteSchema);
+export const NoteTransaction = mongoose.model("NoteTransaction", noteTransactionSchema);
 

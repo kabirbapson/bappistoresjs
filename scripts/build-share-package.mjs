@@ -291,7 +291,7 @@ NEW COMPUTER (first time)
 3. Double-click SETUP.bat — wait until "SETUP FINISHED SUCCESSFULLY"
 4. Add C:\\BappiStores to Windows Defender exclusions
 5. Every day: START.bat — browser http://localhost:5001
-   Login: ASHUK / ASHMAN
+   Login: BAPPI / STORES
 6. Optional: CONFIGURE-HOSTNAME.bat as Administrator
 
 You do NOT need to install Node.js from nodejs.org for this offline zip.
