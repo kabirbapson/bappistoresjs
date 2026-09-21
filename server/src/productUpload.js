@@ -6,8 +6,10 @@ import multer from "multer";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const productUploadsDir = path.resolve(__dirname, "../uploads/products");
+export const brandingUploadsDir = path.resolve(__dirname, "../uploads/branding");
 
 mkdirSync(productUploadsDir, { recursive: true });
+mkdirSync(brandingUploadsDir, { recursive: true });
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/jpg"]);
 const ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png"]);
@@ -32,6 +34,21 @@ export const productImageUpload = multer({
     if (!isAllowedImage(file)) {
       return cb(new Error("Only PNG and JPG images are allowed"));
     }
+    cb(null, true);
+  },
+});
+
+export const brandingImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, brandingUploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      cb(null, `logo-${randomUUID()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!isAllowedImage(file)) return cb(new Error("Only PNG and JPG images are allowed"));
     cb(null, true);
   },
 });

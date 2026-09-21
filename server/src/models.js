@@ -141,6 +141,20 @@ const shiftCloseoutSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const businessProfileSchema = new mongoose.Schema(
+  {
+    businessName: { type: String, default: "ASHUK & ASHMAN BEVERAGES" },
+    tagline: { type: String, default: "Farin Cikinku, Shine Namu..." },
+    logoUrl: { type: String, default: "/newLogo.jpg" },
+    logoIncludesReceiptHeader: { type: Boolean, default: true },
+    addresses: { type: [String], default: [] },
+    phones: { type: [String], default: [] },
+    receiptTitle: { type: String, default: "SALES INVOICE" },
+    receiptFooter: { type: String, default: "بالتوفيق والسلامة" },
+  },
+  { timestamps: true }
+);
+
 export const User = mongoose.model("User", userSchema);
 export const Product = mongoose.model("Product", productSchema);
 export const Customer = mongoose.model("Customer", customerSchema);
@@ -151,4 +165,4 @@ export const StockLog = mongoose.model("StockLog", stockLogSchema);
 export const StockPurchase = mongoose.model("StockPurchase", stockPurchaseSchema);
 export const Expense = mongoose.model("Expense", expenseSchema);
 export const ShiftCloseout = mongoose.model("ShiftCloseout", shiftCloseoutSchema);
-
+export const BusinessProfile = mongoose.model("BusinessProfile", businessProfileSchema);

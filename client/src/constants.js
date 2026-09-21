@@ -43,6 +43,7 @@ export const NAV_ITEMS = [
   ['Shift Closeout', '/closeout'],
   ['Receive Stock', '/receive-stock'],
   ['Reports', '/reports'],
+  ['Business Profile', '/business-profile'],
 ]
 
 export const LOW_STOCK_THRESHOLD = 50

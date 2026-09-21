@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
@@ -13,6 +14,8 @@ import SalesPage from './pages/SalesPage'
 import ReceiveStockPage from './pages/ReceiveStockPage'
 import ExpensesPage from './pages/ExpensesPage'
 import CloseoutPage from './pages/CloseoutPage'
+import BusinessProfilePage from './pages/BusinessProfilePage'
+import { useBusinessProfileStore } from './store'
 
 function withLayout(Page) {
   return (
@@ -25,6 +28,12 @@ function withLayout(Page) {
 }
 
 export default function App() {
+  const loadBusinessProfile = useBusinessProfileStore((s) => s.load)
+
+  useEffect(() => {
+    loadBusinessProfile()
+  }, [loadBusinessProfile])
+
   return (
     <ErrorBoundary>
       <Routes>
@@ -43,6 +52,7 @@ export default function App() {
       <Route path="/expenses" element={withLayout(ExpensesPage)} />
       <Route path="/closeout" element={withLayout(CloseoutPage)} />
       <Route path="/reports" element={withLayout(ReportsPage)} />
+      <Route path="/business-profile" element={withLayout(BusinessProfilePage)} />
       <Route path="*" element={withLayout(DashboardPage)} />
     </Routes>
     </ErrorBoundary>

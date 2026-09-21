@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import StoreBranding from './StoreBranding'
-import {
-  paymentMethodLabel,
-  RECEIPT_PAPER_OPTIONS,
-  STORE_RECEIPT_FOOTER_ARABIC,
-} from '../constants'
+import { paymentMethodLabel, RECEIPT_PAPER_OPTIONS } from '../constants'
+import { useBusinessProfileStore } from '../store'
 import { formatDate, formatNaira } from '../utils/format'
 import { getReceiptPaperMm, printThermalReceipt, setReceiptPaperMm } from '../utils/print'
 
@@ -91,6 +88,7 @@ export default function InvoiceReceipt({
 }
 
 function ReceiptBody({ invoice }) {
+  const profile = useBusinessProfileStore((s) => s.profile)
   const hasCredit = (invoice.creditBalance || 0) > 0
 
   return (
@@ -168,7 +166,7 @@ function ReceiptBody({ invoice }) {
       <footer className="mt-3 border-t border-dashed border-black pt-2 text-center text-xs leading-snug">
         <p>Thank you for shopping with us!</p>
         <p className="mt-1.5 font-medium" dir="rtl" lang="ar">
-          {STORE_RECEIPT_FOOTER_ARABIC}
+          {profile.receiptFooter}
         </p>
       </footer>
     </article>
@@ -192,4 +190,3 @@ function LeftField({ label, value, valueClassName = '' }) {
     </p>
   )
 }
-

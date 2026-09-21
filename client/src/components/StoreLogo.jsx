@@ -1,10 +1,11 @@
-import { STORE_LOGO_SRC, STORE_NAME } from '../constants'
+import { useBusinessProfileStore } from '../store'
 
 export default function StoreLogo({ className = 'h-12 w-auto max-w-full object-contain' }) {
+  const profile = useBusinessProfileStore((s) => s.profile)
   return (
     <img
-      src={STORE_LOGO_SRC}
-      alt={STORE_NAME}
+      src={profile.logoUrl}
+      alt={profile.businessName}
       className={className}
       decoding="async"
     />

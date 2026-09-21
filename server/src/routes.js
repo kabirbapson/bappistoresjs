@@ -20,7 +20,7 @@ import {
 } from "./saleStock.js";
 import { LOW_STOCK_THRESHOLD, MAX_PRODUCTS_LIMIT, MAX_SALES_LIMIT } from "./constants.js";
 import { markShopHasRealData } from "./shopDataMarker.js";
-import { productImageUpload } from "./productUpload.js";
+import { brandingImageUpload, productImageUpload } from "./productUpload.js";
 import {
   Customer,
   Debt,
@@ -29,12 +29,27 @@ import {
   Product,
   Sale,
   ShiftCloseout,
+  BusinessProfile,
   StockLog,
   StockPurchase,
   User,
 } from "./models.js";
 
 const router = express.Router();
+
+const defaultBusinessProfile = {
+  businessName: "ASHUK & ASHMAN BEVERAGES",
+  tagline: "Farin Cikinku, Shine Namu...",
+  logoUrl: "/newLogo.jpg",
+  logoIncludesReceiptHeader: true,
+  addresses: [
+    "Shop No. 67 | Hauwa Sani Marshal Plaza, Malam Kato, Kano.",
+    "Shop No. 17 | NAKOWA Plaza Bayan Glo Olo Office, Kano.",
+  ],
+  phones: ["07066381212", "08145173573"],
+  receiptTitle: "SALES INVOICE",
+  receiptFooter: "بالتوفيق والسلامة",
+};
 
 function normalizeProductName(value) {
   return String(value || "").trim().replace(/\s+/g, " ");
@@ -76,7 +91,41 @@ router.post("/auth/login", async (req, res) => {
   res.json({ token, user: { id: user._id, email: user.email } });
 });
 
+// Public so the login page can show the shop's logo; editing requires authentication below.
+router.get("/business-profile", async (_req, res) => {
+  const profile = await BusinessProfile.findOne().lean();
+  res.json(profile || defaultBusinessProfile);
+});
+
 router.use(auth);
+
+router.put("/business-profile", async (req, res) => {
+  const cleanLines = (value, max) => (Array.isArray(value) ? value : [])
+    .map((line) => String(line || "").trim())
+    .filter(Boolean)
+    .slice(0, max);
+  const profile = {
+    businessName: String(req.body.businessName || "").trim().slice(0, 100),
+    tagline: String(req.body.tagline || "").trim().slice(0, 140),
+    logoUrl: String(req.body.logoUrl || "").trim().slice(0, 300),
+    logoIncludesReceiptHeader: Boolean(req.body.logoIncludesReceiptHeader),
+    addresses: cleanLines(req.body.addresses, 3),
+    phones: cleanLines(req.body.phones, 3),
+    receiptTitle: String(req.body.receiptTitle || "SALES INVOICE").trim().slice(0, 60),
+    receiptFooter: String(req.body.receiptFooter || "").trim().slice(0, 140),
+  };
+  if (!profile.businessName) return res.status(400).json({ message: "Business name is required" });
+  const saved = await BusinessProfile.findOneAndUpdate({}, profile, { new: true, upsert: true, setDefaultsOnInsert: true });
+  res.json(saved);
+});
+
+router.post("/business-profile/logo", (req, res, next) => {
+  brandingImageUpload.single("logo")(req, res, (err) => {
+    if (err) return res.status(400).json({ message: err.message || "Logo upload failed" });
+    if (!req.file) return res.status(400).json({ message: "Choose a logo image" });
+    res.status(201).json({ logoUrl: `/uploads/branding/${req.file.filename}` });
+  });
+});
 
 router.get("/products", async (req, res) => {
   const page = Number(req.query.page || 1);

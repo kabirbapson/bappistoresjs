@@ -1,11 +1,4 @@
-import {
-  STORE_ADDRESSES,
-  STORE_LOGO_INCLUDES_RECEIPT_HEADER,
-  STORE_NAME,
-  STORE_PHONES,
-  STORE_RECEIPT_TITLE,
-  STORE_TAGLINE,
-} from '../constants'
+import { useBusinessProfileStore } from '../store'
 import StoreLogo from './StoreLogo'
 
 /** Store name with addresses in small italics — use under logo across the app. */
@@ -20,8 +13,9 @@ export default function StoreBranding({
   align = 'center',
   showTagline = false,
 }) {
+  const profile = useBusinessProfileStore((s) => s.profile)
   const alignClass = align === 'left' ? 'text-left' : 'text-center'
-  const logoIncludesFullHeader = showLogo && STORE_LOGO_INCLUDES_RECEIPT_HEADER
+  const logoIncludesFullHeader = showLogo && profile.logoIncludesReceiptHeader
   const addressClass = receipt
     ? 'text-[10px] italic leading-tight text-black'
     : dark
@@ -36,13 +30,13 @@ export default function StoreBranding({
   return (
     <div className={alignClass}>
       {showLogo && <StoreLogo className={logoClassName} />}
-      {!logoIncludesFullHeader && <p className={nameClassName}>{STORE_NAME}</p>}
-      {!logoIncludesFullHeader && showTagline && STORE_TAGLINE && (
-        <p className="mt-1 text-xs italic text-slate-500">{STORE_TAGLINE}</p>
+      {!logoIncludesFullHeader && <p className={nameClassName}>{profile.businessName}</p>}
+      {!logoIncludesFullHeader && showTagline && profile.tagline && (
+        <p className="mt-1 text-xs italic text-slate-500">{profile.tagline}</p>
       )}
       {!logoIncludesFullHeader && !compact && (
         <div className={`mt-1.5 space-y-0.5 ${addressClass} ${receipt ? 'receipt-addresses' : ''}`}>
-          {STORE_ADDRESSES.map((line) => (
+          {profile.addresses.map((line) => (
             <p key={line} className={receipt ? 'receipt-address-line' : undefined}>
               {line}
             </p>
@@ -50,11 +44,11 @@ export default function StoreBranding({
         </div>
       )}
       {!logoIncludesFullHeader && showPhones && !compact && (
-        <p className={`mt-2 ${phoneClass}`}>{STORE_PHONES.join(' · ')}</p>
+        <p className={`mt-2 ${phoneClass}`}>{profile.phones.join(' · ')}</p>
       )}
       {receipt && !compact && (
         <p className="mt-1.5 text-xs font-bold uppercase tracking-wide text-black">
-          {STORE_RECEIPT_TITLE}
+          {profile.receiptTitle}
         </p>
       )}
     </div>
