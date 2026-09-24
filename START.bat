@@ -37,7 +37,7 @@ echo %CD% | findstr /I "Documents Desktop OneDrive" >nul && (
 echo.
 echo  Bappi Stores is starting...
 echo  Browser: http://127.0.0.1:5001
-echo           (or http://ashukandashman:5001 after hostname setup)
+echo           (or http://bappistores:5001 after hostname setup)
 echo  Login: BAPPI  /  STORES
 echo.
 echo  Leave this window open while using the app.

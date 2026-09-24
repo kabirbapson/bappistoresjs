@@ -18,13 +18,13 @@ fi
 
 echo ""
 echo "  Bappi Stores is starting..."
-echo "  Browser: http://ashukandashman:5001"
+echo "  Browser: http://bappistores:5001"
 echo "  Login: BAPPI  /  STORES"
 echo ""
 echo "  Leave this window open while using the app."
 echo "  Press Ctrl+C to stop."
 echo ""
 
-(sleep 12 && open "http://ashukandashman:5001/" 2>/dev/null) &
+(sleep 12 && open "http://bappistores:5001/" 2>/dev/null) &
 
 node scripts/start-shop.mjs

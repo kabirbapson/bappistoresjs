@@ -5,6 +5,7 @@ import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { runNpm, runNodeScript } from './spawn-utils.mjs'
+import { APP_HOST } from './app-host.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const distIndex = join(root, 'client', 'dist', 'index.html')
@@ -28,6 +29,6 @@ if (!existsSync(distIndex)) {
 }
 
 console.log('[2/2] Starting server…')
-console.log('      Browser: http://ashukandashman:5001')
+console.log(`      Browser: http://${APP_HOST}:5001`)
 console.log('      Leave this window open while using the app.\n')
 runNodeScript(serverEntry, [], join(root, 'server'))

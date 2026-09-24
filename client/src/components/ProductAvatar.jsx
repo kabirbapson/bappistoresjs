@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { PRODUCT_PLACEHOLDER_SRC } from '../utils/productImage'
 
 export default function ProductAvatar({ product, className = 'h-16 w-16 rounded-lg' }) {
-  const [failed, setFailed] = useState(false)
-  const hasProductImage = Boolean(product?.imageUrl) && !failed
+  const [failedSrc, setFailedSrc] = useState(null)
+  const hasProductImage = Boolean(product?.imageUrl) && failedSrc !== product?.imageUrl
   const src = hasProductImage ? product.imageUrl : PRODUCT_PLACEHOLDER_SRC
 
   return (
@@ -13,7 +13,7 @@ export default function ProductAvatar({ product, className = 'h-16 w-16 rounded-
         alt=""
         className="h-full w-full object-contain object-center"
         onError={() => {
-          if (hasProductImage) setFailed(true)
+          if (product?.imageUrl) setFailedSrc(product.imageUrl)
         }}
       />
     </div>

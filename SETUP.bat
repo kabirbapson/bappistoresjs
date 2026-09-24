@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Ashuk & Ashman Beverages - Setup
+title Bappi Stores - Setup
 cd /d "%~dp0"
 
 if exist "%~dp0bundled\vc_redist.x64.exe" (
@@ -29,7 +29,7 @@ set "NODE_EXE=node"
 :run_setup
 echo.
 echo  ==================================================
-echo   ASHUK & ASHMAN BEVERAGES - SETUP
+echo   BAPPI STORES - SETUP
 echo  ==================================================
 echo.
 echo  IMPORTANT - WHERE TO INSTALL:

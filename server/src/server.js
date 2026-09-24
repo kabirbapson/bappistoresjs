@@ -55,7 +55,7 @@ async function start() {
   await bootstrapIfEmpty();
   console.log("Database ready.");
 
-  const host = process.env.APP_HOST || "ashukandashman";
+  const host = process.env.APP_HOST || "bappistores";
   server = app.listen(port, "0.0.0.0", () => {
     mkdirSync(path.dirname(serverPidFile), { recursive: true });
     writeFileSync(serverPidFile, String(process.pid), "utf8");

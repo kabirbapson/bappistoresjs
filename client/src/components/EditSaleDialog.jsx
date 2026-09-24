@@ -142,10 +142,7 @@ export default function EditSaleDialog({ saleId, invoiceNumber, onClose, onSaved
     }
     const price = Number(nextPrice)
     if (!Number.isFinite(price) || price < 0) return
-    if (price > p.sellingPrice) {
-      toast.error(`Cannot exceed list price ${formatNaira(p.sellingPrice)}`)
-      return
-    }
+
     setCart((prev) =>
       prev.map((l) => (l.productId === productId ? { ...l, unitPrice: price } : l)),
     )

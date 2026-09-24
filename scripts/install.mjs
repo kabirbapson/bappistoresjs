@@ -6,7 +6,7 @@ import { randomBytes } from 'crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
-import { appUrl } from './app-host.mjs'
+import { appUrl, APP_HOST } from './app-host.mjs'
 import { findBundledMongod } from './find-bundled-mongod.mjs'
 import { banner, fail, initProgressLog, progress, step, stepOk } from './progress.mjs'
 import { getNodeExe, isOfflineBundle } from './node-runtime.mjs'
@@ -223,7 +223,7 @@ async function main() {
   progress('Login: BAPPI  /  Password: STORES')
   if (isWin) {
     progress('Next: double-click START.bat every day.')
-    progress('Optional once: CONFIGURE-HOSTNAME.bat as Administrator (for http://ashukandashman:5001).')
+    progress(`Optional once: CONFIGURE-HOSTNAME.bat as Administrator (for http://${APP_HOST}:5001).`)
   } else {
     progress('Next: double-click START.command every day.')
   }

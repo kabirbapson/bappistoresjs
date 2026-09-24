@@ -15,7 +15,7 @@ function PriceField({ value, listPrice, onChange, large = false, compact = false
         value={value}
         onChange={(v) => onChange(v === '' ? listPrice : v)}
         className={`border-0 bg-transparent pr-2 text-right font-semibold tabular-nums focus:outline-none focus:ring-0 ${
-          compact ? 'w-[4.25rem] text-xs' : large ? 'w-[5.5rem] text-lg' : 'w-[5.5rem] text-sm'
+          compact ? 'w-20 text-xs' : large ? 'w-[5.5rem] text-lg' : 'w-[5.5rem] text-sm'
         }`}
       />
     </div>
@@ -61,7 +61,7 @@ export default function SaleCartRow({
             const listPrice = product?.sellingPrice ?? line.unitPrice ?? 0
             const unitPrice = line.unitPrice != null ? line.unitPrice : listPrice
             const lineTotal = unitPrice * line.quantity
-            const hasDiscount = unitPrice < listPrice
+            const hasPriceOverride = unitPrice !== listPrice
             const maxQty = stockMax(line)
 
             return (
@@ -147,13 +147,13 @@ export default function SaleCartRow({
                       onChange={(v) => onUpdatePrice?.(line.productId, v)}
                     />
                   </div>
-                  {hasDiscount && (
+                  {hasPriceOverride && (
                     <button
                       type="button"
                       onClick={() => onUpdatePrice?.(line.productId, listPrice)}
                       className="block w-full text-center text-xs font-medium text-emerald-700 hover:underline"
                     >
-                      Reset
+                      Reset ({formatNaira(listPrice)})
                     </button>
                   )}
                   <div className="flex items-center justify-between gap-1 rounded-lg bg-emerald-50 px-2.5 py-2 ring-1 ring-emerald-100">
@@ -192,6 +192,15 @@ export default function SaleCartRow({
                 listPrice={listPrice}
                 onChange={(v) => onUpdatePrice?.(line.productId, v)}
               />
+              {unitPrice !== listPrice && (
+                <button
+                  type="button"
+                  onClick={() => onUpdatePrice?.(line.productId, listPrice)}
+                  className="mt-1 block w-full text-center text-xs font-medium text-emerald-700 hover:underline"
+                >
+                  Reset ({formatNaira(listPrice)})
+                </button>
+              )}
               <div className="mt-2 flex items-center gap-0.5">
                 <button
                   type="button"

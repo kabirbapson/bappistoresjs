@@ -214,11 +214,6 @@ async function buildSaleProductsFromInput(products) {
     if (!Number.isFinite(unitPrice) || unitPrice < 0) {
       return { error: `Invalid sale price for ${product.name}` };
     }
-    if (unitPrice > listPrice) {
-      return {
-        error: `Sale price cannot be above list price (${listPrice}) for ${product.name}`,
-      };
-    }
 
     const qty = Number(item.quantity);
     if (!Number.isFinite(qty) || qty <= 0) {
@@ -1251,7 +1246,7 @@ router.get("/backup/download", async (req, res) => {
 
     const backupData = {
       exportedAt: new Date().toISOString(),
-      store: "Ashuk & Ashman Beverages",
+      store: "Bappi Stores",
       version: "1.0.0",
       data: {
         users,
